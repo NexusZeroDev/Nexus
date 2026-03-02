@@ -1,292 +1,96 @@
--- [[ NEXA FRUIT SEEKER v1.3 - INSTANT HOP & BRING ]] --
-print("LOADING FRUIT SEEKER v1.3...")
+-- [[ NEXA HUB - END OF SERVICE NOTIFICATION ]] --
 
--- 1. CONFIGURATION
-local Settings = {
-	TweenSpeed = 300,      -- Speed of flight
-	SafeHeight = 800,      -- Teleport Up Height
-	EmergencyHP = 1000,    -- HOP IF HP DROPS BELOW THIS
-	MaxServerTime = 300    -- HOP IF SERVER TIME > 5 MINS
-}
-
--- 2. SERVICES
-local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
-local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
 
-local LocalPlayer = Players.LocalPlayer
+-- 1. CLEANUP OLD UI
+if CoreGui:FindFirstChild("FruitSeekerUI") then
+	CoreGui.FruitSeekerUI:Destroy()
+end
+if CoreGui:FindFirstChild("NexaHubUI") then
+	CoreGui.NexaHubUI:Destroy()
+end
+if CoreGui:FindFirstChild("NexaOverlay") then
+	CoreGui.NexaOverlay:Destroy()
+end
 
--- 3. UI SETUP
+-- 2. CREATE OVERLAY
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FruitSeekerUI"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ResetOnSpawn = false
+ScreenGui.Name = "NexaOverlay"
+ScreenGui.Parent = CoreGui
+ScreenGui.IgnoreGuiInset = true -- Covers the top bar/Roblox menu area
+ScreenGui.DisplayOrder = 10000 -- Forces it to be on top of everything else
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 300, 0, 100)
-MainFrame.Position = UDim2.new(0.5, -150, 0.1, 0)
-MainFrame.Active = true
-MainFrame.Draggable = true
+local Background = Instance.new("Frame")
+Background.Name = "Blackout"
+Background.Parent = ScreenGui
+Background.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Pitch Black
+Background.Size = UDim2.new(1, 0, 1, 0)
+Background.Position = UDim2.new(0, 0, 0, 0)
+Background.BackgroundTransparency = 1 -- Start invisible for fade effect
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
+-- 3. TEXT ELEMENTS
+local MainTitle = Instance.new("TextLabel")
+MainTitle.Parent = Background
+MainTitle.Text = "NEXA HUB"
+MainTitle.TextColor3 = Color3.fromRGB(160, 30, 255) -- Neon Purple
+MainTitle.Font = Enum.Font.GothamBlack
+MainTitle.TextSize = 45
+MainTitle.Size = UDim2.new(1, 0, 0, 50)
+MainTitle.Position = UDim2.new(0, 0, 0.4, 0)
+MainTitle.BackgroundTransparency = 1
+MainTitle.TextTransparency = 1
 
-local Title = Instance.new("TextLabel")
-Title.Parent = MainFrame
-Title.Text = "FRUIT SEEKER v1.3"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 18
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundTransparency = 1
+local StatusText = Instance.new("TextLabel")
+StatusText.Parent = Background
+StatusText.Text = "PROJECT DISCONTINUED"
+StatusText.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusText.Font = Enum.Font.GothamBold
+StatusText.TextSize = 18
+StatusText.Size = UDim2.new(1, 0, 0, 30)
+StatusText.Position = UDim2.new(0, 0, 0.48, 0)
+StatusText.BackgroundTransparency = 1
+StatusText.TextTransparency = 1
+StatusText.TextStrokeTransparency = 0.8
 
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Parent = MainFrame
-StatusLabel.Text = "Status: Idle"
-StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-StatusLabel.TextSize = 14
-StatusLabel.Size = UDim2.new(1, 0, 0, 30)
-StatusLabel.Position = UDim2.new(0, 0, 0.4, 0)
-StatusLabel.BackgroundTransparency = 1
+local SubText = Instance.new("TextLabel")
+SubText.Parent = Background
+SubText.Text = "We are currently engineering a superior architecture.\nExpect something revolutionary soon."
+SubText.TextColor3 = Color3.fromRGB(150, 150, 150) -- Grey
+SubText.Font = Enum.Font.Gotham
+SubText.TextSize = 14
+SubText.Size = UDim2.new(1, 0, 0, 40)
+SubText.Position = UDim2.new(0, 0, 0.55, 0)
+SubText.BackgroundTransparency = 1
+SubText.TextTransparency = 1
 
-local StopBtn = Instance.new("TextButton")
-StopBtn.Parent = MainFrame
-StopBtn.Size = UDim2.new(0, 100, 0, 25)
-StopBtn.Position = UDim2.new(0.5, -50, 0.7, 0)
-StopBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-StopBtn.Text = "STOP"
-StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-StopBtn.Font = Enum.Font.GothamBold
+-- 4. BLUR EFFECT
+local Blur = Instance.new("BlurEffect")
+Blur.Size = 0
+Blur.Parent = Lighting
+Blur.Name = "NexaBlur"
 
--- Global Variables
-local Running = true
-local IsHopping = false
-local JoinTime = tick()
+-- 5. ANIMATION SEQUENCE
+-- Fade Background to Black
+TweenService:Create(Background, TweenInfo.new(1.5), {BackgroundTransparency = 0.05}):Play()
+TweenService:Create(Blur, TweenInfo.new(1.5), {Size = 24}):Play()
 
--- 4. UTILITY FUNCTIONS
-local function Notify(msg)
-	StarterGui:SetCore("SendNotification", {Title = "Fruit Seeker"; Text = msg; Duration = 3;})
-end
+task.wait(1)
 
-local function SetStatus(text)
-	StatusLabel.Text = "Status: " .. text
-end
+-- Fade Text In
+TweenService:Create(MainTitle, TweenInfo.new(1), {TextTransparency = 0}):Play()
+task.wait(0.5)
+TweenService:Create(StatusText, TweenInfo.new(1), {TextTransparency = 0}):Play()
+task.wait(0.5)
+TweenService:Create(SubText, TweenInfo.new(1), {TextTransparency = 0}):Play()
 
-local NoClipConnection
-local function EnableNoClip(state)
-	if state then
-		NoClipConnection = RunService.Stepped:Connect(function()
-			if LocalPlayer.Character then
-				for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
-					if v:IsA("BasePart") then v.CanCollide = false end
-				end
-			end
-		end)
-	else
-		if NoClipConnection then NoClipConnection:Disconnect() end
-	end
-end
-
--- [[ SAFE SKY TELEPORT ]]
-local function GoToSafeZone()
-	local Char = LocalPlayer.Character
-	if Char and Char:FindFirstChild("HumanoidRootPart") then
-		local HRP = Char.HumanoidRootPart
-		HRP.CFrame = HRP.CFrame + Vector3.new(0, Settings.SafeHeight, 0)
-		HRP.Anchored = true
-		HRP.Velocity = Vector3.new(0,0,0)
-	end
-end
-
--- 5. SERVER HOP LOGIC (INSTANT)
-function ServerHop()
-	if IsHopping then return end
-	IsHopping = true
-	Running = false 
-
-	SetStatus("EMERGENCY ESCAPE...")
-	GoToSafeZone() -- Teleport Up
-	task.wait(0.2)
-
-	Notify("Scanning Servers...")
-	
-	local PlaceID = game.PlaceId
-	local AllIDs = {}
-	local foundAnything = ""
-	
-	local function TPReturner()
-		local Site;
-		if foundAnything == "" then
-			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Desc&limit=100'))
-		else
-			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Desc&limit=100&cursor=' .. foundAnything))
-		end
-		
-		local ID = ""
-		if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
-			foundAnything = Site.nextPageCursor
-		end
-		
-		for i,v in pairs(Site.data) do
-			local Possible = true
-			ID = tostring(v.id)
-			if tonumber(v.maxPlayers) > tonumber(v.playing) then
-				for _,Existing in pairs(AllIDs) do
-					if ID == tostring(Existing) then Possible = false end
-				end
-				if Possible == true then
-					table.insert(AllIDs, ID)
-					wait()
-					pcall(function()
-						SetStatus("Hopping...")
-						TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
-					end)
-					wait(2)
-				end
-			end
-		end
-	end
-	pcall(function() TPReturner() end)
-end
-
--- 6. SAFETY MONITORS
+-- Pulse Effect on Title
 task.spawn(function()
-	while Running do
-		wait(1)
-		if IsHopping then break end
-		
-		-- TIME CHECK (5 Minutes)
-		if (tick() - JoinTime) >= Settings.MaxServerTime then
-			Notify("Time Limit Reached. Hopping...")
-			ServerHop()
-		end
-		
-		-- HP CHECK (Low Health)
-		local Char = LocalPlayer.Character
-		if Char then
-			local Hum = Char:FindFirstChild("Humanoid")
-			if Hum and Hum.Health > 0 and Hum.Health <= Settings.EmergencyHP then
-				Notify("⚠️ LOW HP! Escaping...")
-				ServerHop()
-			end
-		end
-	end
-end)
-
--- 7. MOVEMENT & FINDER
-function TweenTo(targetPart)
-	local Char = LocalPlayer.Character
-	if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
-	local HRP = Char.HumanoidRootPart
-	
-	local Distance = (HRP.Position - targetPart.Position).Magnitude
-	local Time = Distance / Settings.TweenSpeed
-	
-	local TInfo = TweenInfo.new(Time, Enum.EasingStyle.Linear)
-	local Goal = {CFrame = targetPart.CFrame}
-	local Tween = TweenService:Create(HRP, TInfo, Goal)
-	
-	EnableNoClip(true)
-	HRP.Velocity = Vector3.new(0,0,0)
-	Tween:Play()
-	
-	local Waited = 0
-	while Waited < Time do
-		if IsHopping or not targetPart.Parent then 
-			Tween:Cancel()
-			return false 
-		end
-		HRP.Velocity = Vector3.new(0,0,0)
-		task.wait(0.1)
-		Waited = Waited + 0.1
-	end
-	EnableNoClip(false)
-	return true
-end
-
-function FindFruit()
-	local FoundFruit = nil
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("Tool") or v:IsA("Model") then
-			if v.Parent == LocalPlayer.Backpack or v.Parent == LocalPlayer.Character then continue end
-			local Name = string.lower(v.Name)
-			if string.find(Name, "fruit") then
-				if v:FindFirstChild("Handle") or v:FindFirstChild("Main") or (v:IsA("BasePart")) then
-					FoundFruit = v
-					break
-				end
-			end
-		end
-	end
-	return FoundFruit
-end
-
--- 8. MAIN LOOP
-StopBtn.MouseButton1Click:Connect(function()
-	Running = false
-	SetStatus("Stopped.")
-	ScreenGui:Destroy()
-end)
-
-task.spawn(function()
-	while Running do
-		wait(0.5) -- Fast Scan
-		if IsHopping then break end
-		
-		local Fruit = FindFruit()
-		if Fruit then
-			local FruitName = Fruit.Name
-			SetStatus("Found: " .. FruitName)
-			Notify("Target: " .. FruitName)
-			
-			local TargetPart = Fruit:FindFirstChild("Handle") or Fruit:FindFirstChild("Main") or Fruit
-			local HRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-			
-			if HRP and TargetPart then
-				-- [[ ATTEMPT TO BRING FRUIT TO CHARACTER (ONCE) ]]
-				pcall(function()
-					-- Try to set Fruit CFrame to Player
-					TargetPart.CFrame = HRP.CFrame
-					-- Try to set Network Ownership if possible (hidden logic)
-					if TargetPart:IsA("BasePart") then
-						sethiddenproperty(TargetPart, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
-					end
-				end)
-				task.wait(0.1)
-
-				-- [[ CHECK DISTANCE ]] 
-				-- If Bring worked, Distance is 0. If failed (Anchored), Distance is high.
-				local Dist = (HRP.Position - TargetPart.Position).Magnitude
-				
-				if Dist > 10 then
-					-- Bring failed (Fruit is Anchored/Server Sided), we MUST tween there
-					SetStatus("Flying to Fruit...")
-					TweenTo(TargetPart)
-				else
-					-- Bring worked!
-					SetStatus("Fruit Brought!")
-				end
-
-				-- Final Collection
-				if TargetPart:IsA("BasePart") then
-					firetouchinterest(HRP, TargetPart, 0)
-					task.wait(0.1)
-					firetouchinterest(HRP, TargetPart, 1)
-				end
-				
-				Notify("Processed " .. FruitName)
-				task.wait(1) 
-			end
-		else
-			-- NO DELAY - INSTANT HOP
-			SetStatus("No Fruits. HOPPING NOW.")
-			ServerHop()
-		end
+	while ScreenGui.Parent do
+		TweenService:Create(MainTitle, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextColor3 = Color3.fromRGB(130, 0, 255)}):Play()
+		task.wait(1)
+		TweenService:Create(MainTitle, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextColor3 = Color3.fromRGB(180, 80, 255)}):Play()
+		task.wait(1)
 	end
 end)
