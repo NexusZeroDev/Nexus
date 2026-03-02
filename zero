@@ -1,5 +1,5 @@
--- [[ NEXA HUB v10 - AUTO CLICK FIXED ]] --
-print("LOADING NEXA HUB v10...")
+-- [[ NEXA HUB v11 - INFINITE REACH ]] --
+print("LOADING NEXA HUB v11...")
 
 -- 1. CLEANUP
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -9,14 +9,15 @@ end
 -- 2. SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager") -- NEW SERVICE
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 -- 3. SETTINGS
 local Settings = {
 	AutoFarm = false,
 	ChestFarm = false,
-	FarmDistance = 7, 
+	FarmDistance = 15, -- WE CAN NOW STAY FARTHER AWAY (15 Studs)
+	HitboxSize = 60,   -- How big the enemy hitbox becomes
 	Smoothness = 0.3,
 	IgnoredChests = {}
 }
@@ -30,137 +31,154 @@ ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Size = UDim2.new(0, 250, 0, 180) 
-MainFrame.Position = UDim2.new(0.5, -125, 0.4, 0) 
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Size = UDim2.new(0, 260, 0, 200) 
+MainFrame.Position = UDim2.new(0.5, -130, 0.4, 0) 
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "NEXA HUB v10 (Click Fix)"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0)
+Title.Text = "NEXA HUB v11 (Reach)"
+Title.TextColor3 = Color3.fromRGB(255, 50, 50)
 Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 16
+Title.TextSize = 18
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = MainFrame
 StatusLabel.Text = "Status: Idle"
-StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 StatusLabel.TextSize = 12
 StatusLabel.Size = UDim2.new(1, 0, 0, 20)
 StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
 StatusLabel.BackgroundTransparency = 1
 
--- 5. THE FIXED AUTO CLICK FUNCTION
+-- 5. FUNCTION: HITBOX EXPANDER (THE MAGIC)
+function ExpandHitbox(enemy)
+	if not enemy then return end
+	local HRP = enemy:FindFirstChild("HumanoidRootPart")
+	if HRP then
+		-- Make the enemy huge so your sword hits it from far away
+		HRP.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+		HRP.Transparency = 0.7 -- Visible so you can see it working (set to 1 to hide)
+		HRP.CanCollide = false
+		HRP.Color = Color3.fromRGB(255, 0, 0)
+	end
+end
+
 function AutoClick()
-	-- METHOD 1: VirtualInputManager (Simulates Real Mouse Click)
+	-- 1. Virtual Click
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
 	task.wait(0.05)
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-
-	-- METHOD 2: Force Tool Activation (Backup if click fails)
+	
+	-- 2. Tool Activate
 	local Char = LocalPlayer.Character
 	if Char then
 		local Tool = Char:FindFirstChildOfClass("Tool")
-		if Tool then
-			Tool:Activate()
-		end
+		if Tool then Tool:Activate() end
 	end
 end
 
--- 6. FINDING TARGETS
-function GetNearestEnemy()
-	local ClosestDist = 500
-	local Target = nil
-	local SearchFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
-	
-	for _, v in pairs(SearchFolder:GetChildren()) do
-		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-			local Char = LocalPlayer.Character
-			if Char and Char:FindFirstChild("HumanoidRootPart") then
-				local Dist = (Char.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-				if Dist < ClosestDist then
-					ClosestDist = Dist
-					Target = v
+-- 6. BUTTONS
+local FarmBtn = Instance.new("TextButton")
+FarmBtn.Parent = MainFrame
+FarmBtn.Size = UDim2.new(0, 200, 0, 40)
+FarmBtn.Position = UDim2.new(0.5, -100, 0.25, 0)
+FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+FarmBtn.Text = "Start Reach Farm"
+FarmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FarmBtn.Font = Enum.Font.GothamBold
+FarmBtn.TextSize = 14
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 6)
+Corner.Parent = FarmBtn
+
+FarmBtn.MouseButton1Click:Connect(function()
+	Settings.AutoFarm = not Settings.AutoFarm
+	if Settings.AutoFarm then
+		FarmBtn.Text = "Stop Farm"
+		FarmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	else
+		FarmBtn.Text = "Start Reach Farm"
+		FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		
+		-- Reset Hitboxes when stopping
+		for _,v in pairs(workspace:GetDescendants()) do
+			if v:IsA("Humanoid") and v.Parent ~= LocalPlayer.Character then
+				if v.Parent:FindFirstChild("HumanoidRootPart") then
+					v.Parent.HumanoidRootPart.Size = Vector3.new(2, 2, 1) -- Reset size
+					v.Parent.HumanoidRootPart.Transparency = 1
 				end
 			end
 		end
 	end
-	return Target
-end
-
--- 7. LOOPS
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Parent = MainFrame
-ToggleBtn.Size = UDim2.new(0, 200, 0, 40)
-ToggleBtn.Position = UDim2.new(0.5, -100, 0.3, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ToggleBtn.Text = "Mob Farm: OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 14
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 6)
-Corner.Parent = ToggleBtn
-
-ToggleBtn.MouseButton1Click:Connect(function()
-	Settings.AutoFarm = not Settings.AutoFarm
-	if Settings.AutoFarm then
-		ToggleBtn.Text = "Mob Farm: ON"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-	else
-		ToggleBtn.Text = "Mob Farm: OFF"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	end
 end)
 
--- SEPARATE ATTACK LOOP (Prevents Lag)
+-- 7. LOOPS
+
+-- ATTACK LOOP
 task.spawn(function()
 	while true do
 		if Settings.AutoFarm then
-			-- Only click if we have a target and we are close
-			local Enemy = GetNearestEnemy()
-			if Enemy then
-				local Char = LocalPlayer.Character
-				if Char and Char:FindFirstChild("HumanoidRootPart") then
-					local Dist = (Char.HumanoidRootPart.Position - Enemy.HumanoidRootPart.Position).Magnitude
-					if Dist < 15 then -- Only click if close
-						AutoClick()
-					end
-				end
-			end
+			pcall(function()
+				AutoClick()
+			end)
 		end
-		-- Adjust Speed here (0.1 is fast, 0.5 is slow)
-		task.wait(0.2) 
+		task.wait(0.15) -- Fast clicking
 	end
 end)
 
--- MOVEMENT LOOP
+-- HITBOX & MOVEMENT LOOP
 RunService.RenderStepped:Connect(function()
 	if Settings.AutoFarm then
 		local Char = LocalPlayer.Character
 		if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
 		local HRP = Char.HumanoidRootPart
-
-		-- Auto Equip Tool if not held
+		
+		-- Auto Equip
 		local Tool = Char:FindFirstChildOfClass("Tool")
 		if not Tool then
 			local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
 			if BackpackTool then BackpackTool.Parent = Char end
 		end
 
-		local Enemy = GetNearestEnemy()
-		if Enemy then
-			StatusLabel.Text = "Killing: " .. Enemy.Name
-			local EnemyPos = Enemy.HumanoidRootPart.Position
-			-- Teleport Behind Enemy
-			local TargetCFrame = CFrame.new(EnemyPos + Vector3.new(0, 0, Settings.FarmDistance), EnemyPos)
+		-- Find Enemy
+		local ClosestDist = 1000
+		local Target = nil
+		local Folder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
+		
+		for _, v in pairs(Folder:GetChildren()) do
+			if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+				local Dist = (HRP.Position - v.HumanoidRootPart.Position).Magnitude
+				if Dist < ClosestDist then
+					ClosestDist = Dist
+					Target = v
+				end
+			end
+		end
+
+		if Target then
+			StatusLabel.Text = "Target: " .. Target.Name
+			
+			-- [[ APPLY REACH ]]
+			ExpandHitbox(Target)
+			
+			local EnemyPos = Target.HumanoidRootPart.Position
+			
+			-- Teleport ABOVE the enemy (Safety) or Far away
+			-- We use Settings.FarmDistance (set to 15 now)
+			local TargetCFrame = CFrame.new(EnemyPos + Vector3.new(0, Settings.FarmDistance, 0), EnemyPos)
 			
 			HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
-			HRP.Velocity = Vector3.new(0,0,0) -- Stop Falling
+			HRP.Velocity = Vector3.new(0,0,0)
+			
+			-- Noclip
+			for _, part in pairs(Char:GetDescendants()) do
+				if part:IsA("BasePart") then part.CanCollide = false end
+			end
 		else
 			StatusLabel.Text = "Scanning..."
 		end
