@@ -1,4 +1,4 @@
--- [[ NEXA HUB v3 - SMOOTH & FIXES ]] --
+-- [[ NEXA HUB v4 - SECURITY & SERVER HOP ]] --
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -10,6 +10,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -17,8 +19,10 @@ local LocalPlayer = Players.LocalPlayer
 local Settings = {
 	AutoFarm = false,
 	FPSBoost = false,
-	FarmDistance = 14, -- Closer distance for Melee/Sword hits
-	Smoothness = 0.2   -- 0.1 is slow/smooth, 0.5 is snappy, 1 is instant
+	FarmDistance = 14,
+	Smoothness = 0.2,
+	ServerHopDelay = 1800, -- 30 Minutes in seconds
+	TimeElapsed = 0
 }
 
 -- 4. GUI CREATION
@@ -30,7 +34,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 260, 0, 180)
+MainFrame.Size = UDim2.new(0, 260, 0, 220) -- Made taller for Timer
 MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -43,7 +47,7 @@ UICorner.Parent = MainFrame
 -- Title
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "NEXA HUB | Blox Fruits"
+Title.Text = "NEXA HUB | Security"
 Title.TextColor3 = Color3.fromRGB(255, 150, 0)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 20
@@ -54,7 +58,7 @@ Title.BackgroundTransparency = 1
 local FarmButton = Instance.new("TextButton")
 FarmButton.Parent = MainFrame
 FarmButton.Size = UDim2.new(0, 220, 0, 35)
-FarmButton.Position = UDim2.new(0.5, -110, 0.3, 0)
+FarmButton.Position = UDim2.new(0.5, -110, 0.25, 0)
 FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 FarmButton.Text = "Auto Farm: OFF"
 FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -69,7 +73,7 @@ FarmCorner.Parent = FarmButton
 local BoostButton = Instance.new("TextButton")
 BoostButton.Parent = MainFrame
 BoostButton.Size = UDim2.new(0, 220, 0, 35)
-BoostButton.Position = UDim2.new(0.5, -110, 0.55, 0)
+BoostButton.Position = UDim2.new(0.5, -110, 0.45, 0)
 BoostButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 BoostButton.Text = "FPS Boost: OFF"
 BoostButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -79,6 +83,17 @@ BoostButton.TextSize = 14
 local BoostCorner = Instance.new("UICorner")
 BoostCorner.CornerRadius = UDim.new(0, 6)
 BoostCorner.Parent = BoostButton
+
+-- Timer Label
+local TimerLabel = Instance.new("TextLabel")
+TimerLabel.Parent = MainFrame
+TimerLabel.Text = "Server Hop in: 30:00"
+TimerLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+TimerLabel.TextSize = 14
+TimerLabel.Font = Enum.Font.GothamBold
+TimerLabel.Size = UDim2.new(1, 0, 0, 20)
+TimerLabel.Position = UDim2.new(0, 0, 0.65, 0)
+TimerLabel.BackgroundTransparency = 1
 
 -- Status Label
 local StatusLabel = Instance.new("TextLabel")
@@ -93,13 +108,82 @@ StatusLabel.BackgroundTransparency = 1
 
 -- 5. FUNCTIONALITY --
 
--- Helper: Find Nearest Enemy (Blox Fruits Specific)
-function GetNearestEnemy()
-	local ClosestDist = 2000 -- Max range to search
-	local Target = nil
+-- Helper: Server Hop
+function ServerHop()
+	StatusLabel.Text = "Status: Hopping Server..."
 	
-	-- Blox Fruits puts mobs in "Enemies" folder or Workspace
+	-- Queue the script to run again after teleport (if supported)
+	if queue_on_teleport then
+		queue_on_teleport('loadstring(game:HttpGet("https://raw.githubusercontent.com/NexusZeroDev/Nexus/main/zero?v="..tostring(tick())))()')
+	end
+
+	-- Find a new server
+	local PlaceID = game.PlaceId
+	local AllIDs = {}
+	local foundAnything = ""
+	local actualHour = os.date("!*t").hour
+	local Deleted = false
+	
+	-- API Request to get server list
+	local function TPReturner()
+		local Site;
+		if foundAnything == "" then
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
+		else
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+		end
+		
+		local ID = ""
+		if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+			foundAnything = Site.nextPageCursor
+		end
+		
+		local num = 0;
+		for i,v in pairs(Site.data) do
+			local Possible = true
+			ID = tostring(v.id)
+			if tonumber(v.maxPlayers) > tonumber(v.playing) then
+				for _,Existing in pairs(AllIDs) do
+					if num ~= 0 then
+						if ID == tostring(Existing) then
+							Possible = false
+						end
+					else
+						if tonumber(actualHour) ~= tonumber(Existing) then
+							local delFile = pcall(function()
+								delfile("NotSameServers.json")
+								AllIDs = {}
+								table.insert(AllIDs, actualHour)
+							end)
+						end
+					end
+					num = num + 1
+				end
+				if Possible == true then
+					table.insert(AllIDs, ID)
+					wait()
+					pcall(function()
+						-- Teleport
+						TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
+					end)
+					wait(4)
+				end
+			end
+		end
+	end
+	
+	-- Try to hop
+	TPReturner() 
+	-- If that fails, standard teleport
+	TeleportService:Teleport(PlaceID, LocalPlayer)
+end
+
+-- Helper: Find Enemy
+function GetNearestEnemy()
+	local ClosestDist = 2000
+	local Target = nil
 	local PotentialTargets = {}
+	
 	if workspace:FindFirstChild("Enemies") then
 		for _, v in pairs(workspace.Enemies:GetChildren()) do table.insert(PotentialTargets, v) end
 	end
@@ -116,58 +200,66 @@ function GetNearestEnemy()
 	return Target
 end
 
--- Helper: Reliable Clicker
+-- Helper: Attack
 function Attack()
-	-- Method 1: VirtualInputManager (Simulates hardware click)
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
 	task.wait(0.05)
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
+-- Helper: Time Formatter
+function FormatTime(seconds)
+	local minutes = math.floor(seconds / 60)
+	local secs = seconds % 60
+	return string.format("%02d:%02d", minutes, secs)
+end
+
 -- LOOP: Main Logic
+local StartTime = tick()
+
 RunService.RenderStepped:Connect(function()
+	-- 1. Handle Timer
+	local Elapsed = tick() - StartTime
+	local TimeLeft = math.ceil(Settings.ServerHopDelay - Elapsed)
+	
+	if TimeLeft <= 0 then
+		TimerLabel.Text = "HOPPING NOW..."
+		ServerHop()
+		StartTime = tick() + 100 -- Prevent spamming call
+	else
+		TimerLabel.Text = "Server Hop in: " .. FormatTime(TimeLeft)
+	end
+	
+	-- 2. Auto Farm Logic
 	if Settings.AutoFarm then
 		local Character = LocalPlayer.Character
 		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
 		local HRP = Character.HumanoidRootPart
 		
-		-- 1. Equip Weapon (Combat or Sword or Fruit)
+		-- Equip Weapon
 		local Tool = Character:FindFirstChildOfClass("Tool")
 		if not Tool then
-			-- Try to equip from backpack
 			for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
 				if item:IsA("Tool") then
 					item.Parent = Character
-					break -- Equip first tool found
+					break
 				end
 			end
 		end
 
-		-- 2. Find Enemy
 		local Enemy = GetNearestEnemy()
 		if Enemy then
 			StatusLabel.Text = "Target: " .. Enemy.Name
-			
-			-- 3. Calculate "Above" Position
 			local EnemyPos = Enemy.HumanoidRootPart.Position
-			-- We create a CFrame looking DOWN at the enemy, positioned 14 studs above
 			local TargetCFrame = CFrame.new(EnemyPos + Vector3.new(0, Settings.FarmDistance, 0), EnemyPos)
 			
-			-- 4. SMOOTH MOVEMENT (Lerp)
-			-- If very far, teleport first to save time
 			if (HRP.Position - TargetCFrame.Position).Magnitude > 300 then
 				HRP.CFrame = TargetCFrame
 			else
-				-- If close, glide smoothly
 				HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
 			end
-			
-			-- 5. Freeze Velocity (So gravity doesn't pull you down)
 			HRP.Velocity = Vector3.new(0,0,0)
-			
-			-- 6. Attack
 			Attack()
-			
 		else
 			StatusLabel.Text = "Status: Searching..."
 		end
@@ -181,7 +273,6 @@ FarmButton.MouseButton1Click:Connect(function()
 		FarmButton.Text = "Auto Farm: ON"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
 		
-		-- Add BodyVelocity to float
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") then
 			local BV = Instance.new("BodyVelocity")
@@ -190,13 +281,11 @@ FarmButton.MouseButton1Click:Connect(function()
 			BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 			BV.Velocity = Vector3.new(0,0,0)
 		end
-		
 	else
 		FarmButton.Text = "Auto Farm: OFF"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		StatusLabel.Text = "Status: Idle"
 		
-		-- Remove BodyVelocity
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart:FindFirstChild("FlyVelocity") then
 			Character.HumanoidRootPart.FlyVelocity:Destroy()
