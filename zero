@@ -1,5 +1,5 @@
--- [[ NEXA HUB v5.2 - TOP BAR FIX ]] --
-print("LOADING NEXA HUB v5.2 (TOP BAR)...") -- Check your console (F9) for this!
+-- [[ NEXA HUB v6 - CHEST FARM EDITION ]] --
+print("LOADING NEXA HUB v6...")
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -19,9 +19,10 @@ local LocalPlayer = Players.LocalPlayer
 -- 3. SETTINGS
 local Settings = {
 	AutoFarm = false,
+	ChestFarm = false,
 	FPSBoost = false,
 	FarmDistance = 14,
-	Smoothness = 0.2,
+	Smoothness = 0.2, -- Lower is smoother/slower (Safer)
 	ServerHopDelay = 1800
 }
 
@@ -38,8 +39,7 @@ MiniFrame.Name = "MiniFrame"
 MiniFrame.Parent = ScreenGui
 MiniFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MiniFrame.Size = UDim2.new(0, 300, 0, 50) 
--- POSITION: 0.02 is 2% from the TOP of the screen.
-MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) 
+MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) -- Top Center
 MiniFrame.BorderSizePixel = 0
 MiniFrame.Visible = true 
 MiniFrame.Active = true
@@ -53,7 +53,6 @@ MiniStroke.Parent = MiniFrame
 MiniStroke.Color = Color3.fromRGB(60, 60, 60)
 MiniStroke.Thickness = 1
 
--- User Icon (Left Side)
 local UserIcon = Instance.new("ImageLabel")
 UserIcon.Parent = MiniFrame
 UserIcon.Size = UDim2.new(0, 34, 0, 34)
@@ -66,10 +65,9 @@ local IconCorner = Instance.new("UICorner")
 IconCorner.CornerRadius = UDim.new(1, 0) 
 IconCorner.Parent = UserIcon
 
--- Title Text
 local MiniTitle = Instance.new("TextLabel")
 MiniTitle.Parent = MiniFrame
-MiniTitle.Text = "Nexa Hub [Top Bar]"
+MiniTitle.Text = "Nexa Hub [Premium]"
 MiniTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 MiniTitle.TextSize = 14
 MiniTitle.Font = Enum.Font.GothamBold
@@ -78,7 +76,6 @@ MiniTitle.Position = UDim2.new(0, 50, 0.2, 0)
 MiniTitle.TextXAlignment = Enum.TextXAlignment.Left
 MiniTitle.BackgroundTransparency = 1
 
--- Subtitle Text
 local MiniSub = Instance.new("TextLabel")
 MiniSub.Parent = MiniFrame
 MiniSub.Text = "by NexusZeroDev"
@@ -90,7 +87,6 @@ MiniSub.Position = UDim2.new(0, 50, 0.5, 0)
 MiniSub.TextXAlignment = Enum.TextXAlignment.Left
 MiniSub.BackgroundTransparency = 1
 
--- Maximize Button (Square Icon)
 local MaximizeBtn = Instance.new("TextButton")
 MaximizeBtn.Parent = MiniFrame
 MaximizeBtn.Size = UDim2.new(0, 50, 1, 0)
@@ -108,7 +104,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 260, 0, 220)
+MainFrame.Size = UDim2.new(0, 260, 0, 280) -- Made Taller for new button
 MainFrame.Position = UDim2.new(0.5, -130, 0.4, 0) 
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false 
@@ -119,7 +115,6 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- Minimize Button (-)
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Parent = MainFrame
 MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -134,7 +129,6 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 6)
 MinCorner.Parent = MinimizeBtn
 
--- Title
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
 Title.Text = "NEXA HUB"
@@ -146,13 +140,13 @@ Title.Position = UDim2.new(0, 10, 0, 0)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
--- Button 1: Auto Farm
+-- Button 1: Auto Farm (Mob)
 local FarmButton = Instance.new("TextButton")
 FarmButton.Parent = MainFrame
 FarmButton.Size = UDim2.new(0, 220, 0, 35)
-FarmButton.Position = UDim2.new(0.5, -110, 0.25, 0)
+FarmButton.Position = UDim2.new(0.5, -110, 0.18, 0)
 FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-FarmButton.Text = "Auto Farm: OFF"
+FarmButton.Text = "Mob Farm: OFF"
 FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FarmButton.Font = Enum.Font.GothamBold
 FarmButton.TextSize = 14
@@ -161,11 +155,26 @@ local FarmCorner = Instance.new("UICorner")
 FarmCorner.CornerRadius = UDim.new(0, 6)
 FarmCorner.Parent = FarmButton
 
--- Button 2: FPS Boost
+-- Button 2: Chest Farm (NEW)
+local ChestButton = Instance.new("TextButton")
+ChestButton.Parent = MainFrame
+ChestButton.Size = UDim2.new(0, 220, 0, 35)
+ChestButton.Position = UDim2.new(0.5, -110, 0.35, 0)
+ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ChestButton.Text = "Chest Farm: OFF"
+ChestButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ChestButton.Font = Enum.Font.GothamBold
+ChestButton.TextSize = 14
+
+local ChestCorner = Instance.new("UICorner")
+ChestCorner.CornerRadius = UDim.new(0, 6)
+ChestCorner.Parent = ChestButton
+
+-- Button 3: FPS Boost
 local BoostButton = Instance.new("TextButton")
 BoostButton.Parent = MainFrame
 BoostButton.Size = UDim2.new(0, 220, 0, 35)
-BoostButton.Position = UDim2.new(0.5, -110, 0.45, 0)
+BoostButton.Position = UDim2.new(0.5, -110, 0.52, 0)
 BoostButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 BoostButton.Text = "FPS Boost: OFF"
 BoostButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -184,7 +193,7 @@ TimerLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
 TimerLabel.TextSize = 14
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Size = UDim2.new(1, 0, 0, 20)
-TimerLabel.Position = UDim2.new(0, 0, 0.65, 0)
+TimerLabel.Position = UDim2.new(0, 0, 0.70, 0)
 TimerLabel.BackgroundTransparency = 1
 
 -- Status Label
@@ -195,16 +204,16 @@ StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 StatusLabel.TextSize = 12
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
+StatusLabel.Position = UDim2.new(0, 0, 0.88, 0)
 StatusLabel.BackgroundTransparency = 1
 
--- 5. UI ANIMATION LOGIC
+-- 5. LOGIC
 local function ToggleUI(state)
 	if state == "Open" then
 		MiniFrame.Visible = false
 		MainFrame.Visible = true
-		MainFrame.Size = UDim2.new(0, 240, 0, 200)
-		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0, 260, 0, 220)})
+		MainFrame.Size = UDim2.new(0, 240, 0, 260)
+		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0, 260, 0, 280)})
 		tween:Play()
 	else
 		MainFrame.Visible = false
@@ -212,17 +221,23 @@ local function ToggleUI(state)
 	end
 end
 
-MaximizeBtn.MouseButton1Click:Connect(function()
-	ToggleUI("Open")
+MaximizeBtn.MouseButton1Click:Connect(function() ToggleUI("Open") end)
+MinimizeBtn.MouseButton1Click:Connect(function() ToggleUI("Close") end)
+
+-- NOCLIP (Required for Chest Farm)
+RunService.Stepped:Connect(function()
+	if Settings.ChestFarm or Settings.AutoFarm then
+		if LocalPlayer.Character then
+			for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+				if part:IsA("BasePart") and part.CanCollide then
+					part.CanCollide = false
+				end
+			end
+		end
+	end
 end)
 
-MinimizeBtn.MouseButton1Click:Connect(function()
-	ToggleUI("Close")
-end)
-
-
--- 6. FUNCTIONALITY & LOGIC
-local function ServerHop()
+function ServerHop()
 	StatusLabel.Text = "Status: Hopping Server..."
 	if queue_on_teleport then
 		queue_on_teleport('loadstring(game:HttpGet("https://raw.githubusercontent.com/NexusZeroDev/Nexus/main/zero?v="..tostring(tick())))()')
@@ -286,6 +301,27 @@ function GetNearestEnemy()
 	return Target
 end
 
+function GetNearestChest()
+	local ClosestDist = 5000
+	local Target = nil
+	
+	for _, v in pairs(workspace:GetDescendants()) do
+		-- Blox fruits chests usually named Chest1, Chest2, Chest3
+		if string.find(v.Name, "Chest") and (v:IsA("Part") or v:IsA("Model")) then
+			if v:IsA("Model") and not v.PrimaryPart then continue end -- Skip broken chests
+			
+			local Pos = v:IsA("Model") and v.PrimaryPart.Position or v.Position
+			local Dist = (LocalPlayer.Character.HumanoidRootPart.Position - Pos).Magnitude
+			
+			if Dist < ClosestDist then
+				ClosestDist = Dist
+				Target = v
+			end
+		end
+	end
+	return Target
+end
+
 function Attack()
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
 	task.wait(0.05)
@@ -312,6 +348,7 @@ RunService.RenderStepped:Connect(function()
 		TimerLabel.Text = "Server Hop in: " .. FormatTime(TimeLeft)
 	end
 	
+	-- [[ MOB FARM LOGIC ]]
 	if Settings.AutoFarm then
 		local Character = LocalPlayer.Character
 		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
@@ -320,16 +357,13 @@ RunService.RenderStepped:Connect(function()
 		local Tool = Character:FindFirstChildOfClass("Tool")
 		if not Tool then
 			for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-				if item:IsA("Tool") then
-					item.Parent = Character
-					break
-				end
+				if item:IsA("Tool") then item.Parent = Character break end
 			end
 		end
 
 		local Enemy = GetNearestEnemy()
 		if Enemy then
-			StatusLabel.Text = "Target: " .. Enemy.Name
+			StatusLabel.Text = "Mob: " .. Enemy.Name
 			local EnemyPos = Enemy.HumanoidRootPart.Position
 			local TargetCFrame = CFrame.new(EnemyPos + Vector3.new(0, Settings.FarmDistance, 0), EnemyPos)
 			
@@ -341,15 +375,46 @@ RunService.RenderStepped:Connect(function()
 			HRP.Velocity = Vector3.new(0,0,0)
 			Attack()
 		else
-			StatusLabel.Text = "Status: Searching..."
+			StatusLabel.Text = "Status: No Mobs Found"
+		end
+	end
+	
+	-- [[ CHEST FARM LOGIC ]]
+	if Settings.ChestFarm then
+		local Character = LocalPlayer.Character
+		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+		local HRP = Character.HumanoidRootPart
+		
+		local Chest = GetNearestChest()
+		if Chest then
+			StatusLabel.Text = "Chest: " .. Chest.Name
+			local ChestPos = Chest:IsA("Model") and Chest.PrimaryPart.Position or Chest.Position
+			
+			-- Tween directly into the chest to collect it
+			local TargetCFrame = CFrame.new(ChestPos)
+			
+			if (HRP.Position - TargetCFrame.Position).Magnitude > 300 then
+				HRP.CFrame = TargetCFrame
+			else
+				HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
+			end
+			HRP.Velocity = Vector3.new(0,0,0)
+		else
+			StatusLabel.Text = "Status: No Chests Found"
 		end
 	end
 end)
 
+-- BUTTON EVENTS
 FarmButton.MouseButton1Click:Connect(function()
 	Settings.AutoFarm = not Settings.AutoFarm
+	Settings.ChestFarm = false -- Turn off Chest Farm if we turn on Mob Farm
+	
+	ChestButton.Text = "Chest Farm: OFF"
+	ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	
 	if Settings.AutoFarm then
-		FarmButton.Text = "Auto Farm: ON"
+		FarmButton.Text = "Mob Farm: ON"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") then
@@ -360,9 +425,42 @@ FarmButton.MouseButton1Click:Connect(function()
 			BV.Velocity = Vector3.new(0,0,0)
 		end
 	else
-		FarmButton.Text = "Auto Farm: OFF"
+		FarmButton.Text = "Mob Farm: OFF"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		StatusLabel.Text = "Status: Idle"
+		local Character = LocalPlayer.Character
+		if Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart:FindFirstChild("FlyVelocity") then
+			Character.HumanoidRootPart.FlyVelocity:Destroy()
+		end
+	end
+end)
+
+ChestButton.MouseButton1Click:Connect(function()
+	Settings.ChestFarm = not Settings.ChestFarm
+	Settings.AutoFarm = false -- Turn off Mob Farm if we turn on Chest Farm
+	
+	FarmButton.Text = "Mob Farm: OFF"
+	FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	
+	if Settings.ChestFarm then
+		ChestButton.Text = "Chest Farm: ON"
+		ChestButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+		
+		-- Enable Float
+		local Character = LocalPlayer.Character
+		if Character and Character:FindFirstChild("HumanoidRootPart") then
+			local BV = Instance.new("BodyVelocity")
+			BV.Name = "FlyVelocity"
+			BV.Parent = Character.HumanoidRootPart
+			BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+			BV.Velocity = Vector3.new(0,0,0)
+		end
+	else
+		ChestButton.Text = "Chest Farm: OFF"
+		ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		StatusLabel.Text = "Status: Idle"
+		
+		-- Disable Float
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart:FindFirstChild("FlyVelocity") then
 			Character.HumanoidRootPart.FlyVelocity:Destroy()
