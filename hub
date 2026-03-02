@@ -1,0 +1,60 @@
+-- 1. CLEANUP: Check if the GUI already exists and delete it (so you don't get duplicates)
+if game.CoreGui:FindFirstChild("MyToggleGUI") then
+	game.CoreGui.MyToggleGUI:Destroy()
+end
+
+-- 2. CREATE THE GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MyToggleGUI"
+screenGui.Parent = game.CoreGui -- Putting it in CoreGui hides it from the game somewhat
+
+-- 3. CREATE THE BUTTON
+local button = Instance.new("TextButton")
+button.Name = "ToggleButton"
+button.Parent = screenGui
+button.Size = UDim2.new(0, 150, 0, 50) -- Size: 150px wide, 50px tall
+button.Position = UDim2.new(0.5, -75, 0.1, 0) -- Position: Top Center
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 20
+button.Text = "OFF"
+button.BackgroundColor3 = Color3.fromRGB(255, 80, 80) -- Start Red
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Add rounded corners to make it look nice
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = button
+
+-- 4. THE TOGGLE LOGIC
+local isOn = false
+
+button.MouseButton1Click:Connect(function()
+	isOn = not isOn -- Flip the state
+	
+	if isOn then
+		-- VISUALS: Turn Green
+		button.Text = "ON"
+		button.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
+		
+		-------------------------------------------------------
+		-- [[ YOUR ON CODE GOES HERE ]]
+		print("Enabled!")
+		
+		-- Example: Super Speed
+		game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 50
+		-------------------------------------------------------
+		
+	else
+		-- VISUALS: Turn Red
+		button.Text = "OFF"
+		button.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+		
+		-------------------------------------------------------
+		-- [[ YOUR OFF CODE GOES HERE ]]
+		print("Disabled!")
+		
+		-- Example: Reset Speed
+		game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+		-------------------------------------------------------
+	end
+end)
