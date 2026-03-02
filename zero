@@ -1,13 +1,12 @@
--- [[ NEXA FRUIT SEEKER - TWEEN & HOP ]] --
-print("LOADING FRUIT SEEKER...")
+-- [[ NEXA FRUIT SEEKER v1.1 - SAFE HOP EDITION ]] --
+print("LOADING FRUIT SEEKER v1.1...")
 
 -- 1. CONFIGURATION
 local Settings = {
 	TweenSpeed = 300,      -- Speed of flight (Higher = Faster)
 	PickupDistance = 5,    -- How close to get before picking up
 	ServerHopDelay = 5,    -- Seconds to wait before hopping if no fruit
-	StoreFruit = true,     -- Attempt to store fruit (Game dependent, usually disabled to be safe)
-	SafeMode = true        -- Slows down slightly to prevent kicks
+	SafeHeight = 800       -- How high to TP up (800 is safe for most anti-cheats)
 }
 
 -- 2. SERVICES
@@ -41,10 +40,10 @@ UICorner.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "FRUIT SEEKER"
+Title.Text = "FRUIT SEEKER (Safe Hop)"
 Title.TextColor3 = Color3.fromRGB(255, 100, 255)
 Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 20
+Title.TextSize = 18
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
 
@@ -67,7 +66,6 @@ StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StopBtn.Font = Enum.Font.GothamBold
 
 -- 4. UTILITY FUNCTIONS
-
 local function Notify(msg)
 	StarterGui:SetCore("SendNotification", {
 		Title = "Fruit Seeker";
@@ -96,22 +94,33 @@ local function EnableNoClip(state)
 	end
 end
 
+-- [[ NEW: SAFE SKY TELEPORT ]] --
+local function GoToSafeZone()
+	local Char = LocalPlayer.Character
+	if Char and Char:FindFirstChild("HumanoidRootPart") then
+		local HRP = Char.HumanoidRootPart
+		-- Teleport Up
+		HRP.CFrame = HRP.CFrame + Vector3.new(0, Settings.SafeHeight, 0)
+		-- Anchor so we don't fall while the server hop loads
+		HRP.Anchored = true
+		HRP.Velocity = Vector3.new(0,0,0)
+	end
+end
+
 -- 5. FRUIT DETECTION
 function FindFruit()
 	local FoundFruit = nil
-	
 	-- Scan Workspace for common Fruit names
 	for _, v in pairs(workspace:GetDescendants()) do
 		if v:IsA("Tool") or v:IsA("Model") then
-			-- IGNORE: Our Backpack, Our Character, ReplicatedStorage
+			-- IGNORE: Our Backpack, Our Character
 			if v.Parent == LocalPlayer.Backpack or v.Parent == LocalPlayer.Character then continue end
 			
 			local Name = string.lower(v.Name)
 			if string.find(Name, "fruit") then
-				-- Check if it has a handle (Physical part to tween to)
 				if v:FindFirstChild("Handle") or v:FindFirstChild("Main") or (v:IsA("BasePart")) then
 					FoundFruit = v
-					break -- Found one!
+					break
 				end
 			end
 		end
@@ -134,18 +143,16 @@ function TweenTo(targetPart)
 	local Tween = TweenService:Create(HRP, TInfo, Goal)
 	
 	EnableNoClip(true)
-	HRP.Velocity = Vector3.new(0,0,0) -- Freeze physics
+	HRP.Velocity = Vector3.new(0,0,0)
 	
 	Tween:Play()
 	
-	-- Wait for tween to finish or fruit to disappear
 	local Waited = 0
 	while Waited < Time do
 		if not targetPart.Parent then 
 			Tween:Cancel()
-			return false -- Fruit despawned/picked up by someone else
+			return false 
 		end
-		-- Stop physics falling
 		HRP.Velocity = Vector3.new(0,0,0)
 		task.wait(0.1)
 		Waited = Waited + 0.1
@@ -157,8 +164,13 @@ end
 
 -- 7. SERVER HOP LOGIC
 function ServerHop()
-	SetStatus("Searching Old Servers...")
-	Notify("Searching for a server (~4h old)...")
+	-- [[ EXECUTE SAFE TELEPORT ]]
+	SetStatus("Securing Character...")
+	GoToSafeZone() -- Teleport up before searching
+	task.wait(1)   -- Give it a second to anchor
+
+	SetStatus("Finding Old Server...")
+	Notify("Scanning for ~4h old servers...")
 	
 	local PlaceID = game.PlaceId
 	local AllIDs = {}
@@ -189,7 +201,7 @@ function ServerHop()
 					table.insert(AllIDs, ID)
 					wait()
 					pcall(function()
-						SetStatus("Hopping to Server...")
+						SetStatus("Hopping...")
 						TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
 					end)
 					wait(4)
@@ -198,10 +210,7 @@ function ServerHop()
 		end
 	end
 
-	-- Try recursive search
-	pcall(function()
-		TPReturner() 
-	end)
+	pcall(function() TPReturner() end)
 end
 
 -- 8. MAIN EXECUTION LOOP
@@ -223,7 +232,6 @@ task.spawn(function()
 			SetStatus("Found: " .. FruitName)
 			Notify("Fruit Found: " .. FruitName)
 			
-			-- Identify the physical part to tween to
 			local TargetPart = Fruit:FindFirstChild("Handle") or Fruit:FindFirstChild("Main") or Fruit
 			
 			-- 1. Tween to Fruit
@@ -231,13 +239,13 @@ task.spawn(function()
 			
 			if Success then
 				SetStatus("Collecting...")
-				-- 2. Teleport directly on top to be sure
+				-- 2. Teleport directly on top
 				if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
 					LocalPlayer.Character.HumanoidRootPart.CFrame = TargetPart.CFrame
 				end
 				task.wait(0.5)
 				
-				-- 3. FireTouchInterest (Better than just touching)
+				-- 3. FireTouchInterest
 				if TargetPart:IsA("BasePart") and LocalPlayer.Character.HumanoidRootPart then
 					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, TargetPart, 0)
 					task.wait(0.1)
@@ -245,11 +253,11 @@ task.spawn(function()
 				end
 				
 				Notify("Collected " .. FruitName)
-				task.wait(2) -- Wait for inventory update
+				task.wait(2)
 			end
 		else
 			SetStatus("No Fruits. Hopping in " .. Settings.ServerHopDelay .. "s")
-			Notify("No Fruit found. Server Hopping...")
+			Notify("No Fruit found. Preparing to Hop...")
 			task.wait(Settings.ServerHopDelay)
 			ServerHop()
 		end
