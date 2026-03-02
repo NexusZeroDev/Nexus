@@ -1,170 +1,168 @@
--- [[ NEXA HUB v12 - CLOSE RANGE FIX ]] --
-print("LOADING NEXA HUB v12...")
+--// Basic Framework for Blox Fruit Script Features (Conceptual)
+--// WARNING: Using scripts like this violates Roblox ToS and can result in bans.
 
--- 1. CLEANUP
-if game.CoreGui:FindFirstChild("NexaHubUI") then
-	game.CoreGui.NexaHubUI:Destroy()
-end
-
--- 2. SERVICES
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:GetService("VirtualUser") -- For AutoClick
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
--- 3. SETTINGS
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--// Mock Services/Functions for demonstration (Replace with actual logic if possible)
+local CommF = ReplicatedStorage:WaitForChild("Remotes").CommF_
+local PlayerData = LocalPlayer:WaitForChild("Data")
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+--// Settings Table
 local Settings = {
-	AutoFarm = false,
-	Distance = 4, -- 4 Studs is close enough to hit, but just out of touch range
-	Height = 0,   -- 0 = Same level (Behind), 5 = Above
-	Angle = 0     -- Used for rotation
+    AutoFarm = false,
+    AutoClick = false,
+    FastAttack = false,
+    InfiniteAbility = false,
+    WalkOnWater = false,
+    AutoQuest = false,
+    SelectedWeapon = "",
+    SelectedIsland = "",
+    SelectedMonster = ""
 }
 
--- 4. GUI SETUP
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NexaHubUI"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ResetOnSpawn = false
+--// Simple Toggle UI (Using Drawing API - Requires exploit support)
+--// A real script would use a more robust UI library.
+local uiEnabled = true
+local toggles = {}
+local windows = {}
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 220, 0, 160) 
-MainFrame.Position = UDim2.new(0.5, -110, 0.4, 0) 
-MainFrame.Active = true
-MainFrame.Draggable = true 
+local function createWindow(name, size, position)
+    local window = { name = name, size = size, position = position, visible = true }
+    windows[name] = window
+    return window
+end
 
-local Title = Instance.new("TextLabel")
-Title.Parent = MainFrame
-Title.Text = "NEXA HUB v12"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 16
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundTransparency = 1
+local function createToggle(windowName, label, settingKey)
+    local toggle = {
+        label = label,
+        settingKey = settingKey,
+        value = Settings[settingKey] or false
+    }
+    toggles[label] = toggle
+    return toggle
+end
 
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Parent = MainFrame
-StatusLabel.Text = "Status: Idle"
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-StatusLabel.TextSize = 12
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
-StatusLabel.BackgroundTransparency = 1
+-- Example Window and Toggles
+local mainWin = createWindow("Blox Fruit Script", Vector2.new(300, 400), Vector2.new(10, 10))
+createToggle("Blox Fruit Script", "Auto Farm", "AutoFarm")
+createToggle("Blox Fruit Script", "Auto Click", "AutoClick")
+createToggle("Blox Fruit Script", "Fast Attack", "FastAttack")
+createToggle("Blox Fruit Script", "Infinite Ability", "InfiniteAbility")
+createToggle("Blox Fruit Script", "Walk on Water", "WalkOnWater")
+createToggle("Blox Fruit Script", "Auto Quest", "AutoQuest")
 
--- 5. ATTACK FUNCTION
+--// Auto Click Function
 local function AutoClick()
-	-- Force Tool Swing
-	local Char = LocalPlayer.Character
-	if Char then
-		local Tool = Char:FindFirstChildOfClass("Tool")
-		if Tool then
-			Tool:Activate()
-		else
-			-- If no tool, try standard M1 (Fighting styles)
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-			task.wait(0.05) -- Fast tap
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-		end
-	end
+    if Settings.AutoClick then
+        -- Simulate a mouse click using VirtualUser (exploit dependent)
+        -- This might trigger anti-cheat in legitimate environments
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(0, 0))
+        VirtualUser:Button1Up(Vector2.new(0, 0))
+    end
 end
 
--- 6. TOGGLE BUTTON
-local FarmBtn = Instance.new("TextButton")
-FarmBtn.Parent = MainFrame
-FarmBtn.Size = UDim2.new(0, 180, 0, 40)
-FarmBtn.Position = UDim2.new(0.5, -90, 0.3, 0)
-FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-FarmBtn.Text = "Start Farm"
-FarmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FarmBtn.Font = Enum.Font.GothamBold
-FarmBtn.TextSize = 14
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 6)
-Corner.Parent = FarmBtn
-
-FarmBtn.MouseButton1Click:Connect(function()
-	Settings.AutoFarm = not Settings.AutoFarm
-	if Settings.AutoFarm then
-		FarmBtn.Text = "Stop Farm"
-		FarmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-	else
-		FarmBtn.Text = "Start Farm"
-		FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	end
-end)
-
--- 7. TARGET FINDER
-function GetTarget()
-	local ClosestDist = 500
-	local Target = nil
-	local Folder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
-	
-	for _, v in pairs(Folder:GetChildren()) do
-		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-			local Char = LocalPlayer.Character
-			if Char and Char:FindFirstChild("HumanoidRootPart") then
-				local Dist = (Char.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-				if Dist < ClosestDist then
-					ClosestDist = Dist
-					Target = v
-				end
-			end
-		end
-	end
-	return Target
+--// Fast Attack Function (Conceptual - modifies tool cooldowns)
+local function FastAttack()
+    if Settings.FastAttack then
+        -- This usually involves manipulating internal script variables
+        -- Example: Find the tool's script and modify its cooldown variable
+        -- This is highly unstable and exploit-dependent
+        for _, tool in pairs(Character:GetChildren()) do
+            if tool:IsA("Tool") and tool:FindFirstChild("Activated") then
+                -- Manipulation logic goes here (very risky)
+                -- Often requires debugging tools and understanding the tool's script structure
+            end
+        end
+    end
 end
 
--- 8. MAIN LOOPS
+--// Walk on Water Function (Changes water part properties)
+local function WalkOnWater()
+    if Settings.WalkOnWater then
+        -- Iterate through workspace parts and find water
+        -- Change CanCollide or Material properties
+        for _, part in pairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name == "Water" then -- Or check material
+                part.CanCollide = false
+                -- part.Material = Enum.Material.Neon -- Sometimes used for visibility
+            end
+        end
+    else
+        -- Reset water properties when disabled
+        for _, part in pairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name == "Water" then
+                part.CanCollide = true -- Restore original state
+            end
+        end
+    end
+end
 
--- Attack Loop (Runs separately)
-task.spawn(function()
-	while true do
-		if Settings.AutoFarm then
-			pcall(function() AutoClick() end)
-		end
-		task.wait(0.1) -- Click speed
-	end
+--// Auto Quest Function (Conceptual - interacts with NPC quests)
+local function AutoQuest()
+    if Settings.AutoQuest then
+        -- Find quest giver NPCs
+        -- Check if player has active quest
+        -- Move to quest location if needed
+        -- Interact with NPC to accept/complete
+        -- This requires knowing NPC names and quest structures
+        -- Example:
+        -- local questNPC = workspace:FindFirstChild("QuestGiver")
+        -- if questNPC then
+        --     CommF:InvokeServer("CheckQuestProgress")
+        --     -- Logic to interact and move
+        -- end
+    end
+end
+
+--// Main Loop
+RunService.Heartbeat:Connect(function()
+    -- Apply settings that require constant updates
+    WalkOnWater() -- Needs to run constantly to reset/apply water changes
+
+    -- Trigger actions that happen every frame (if needed)
+    if Settings.AutoClick then
+        AutoClick()
+    end
+    if Settings.FastAttack then
+        FastAttack() -- Might need to run less frequently
+    end
+    if Settings.AutoQuest then
+        AutoQuest() -- Might run on a timer instead
+    end
 end)
 
--- Movement Loop (Runs every frame)
-RunService.RenderStepped:Connect(function()
-	if Settings.AutoFarm then
-		local Char = LocalPlayer.Character
-		if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
-		local HRP = Char.HumanoidRootPart
-		
-		-- Equip Tool
-		local Tool = Char:FindFirstChildOfClass("Tool")
-		if not Tool then
-			local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-			if BackpackTool then BackpackTool.Parent = Char end
-		end
-
-		local Enemy = GetTarget()
-		if Enemy then
-			StatusLabel.Text = "Attack: " .. Enemy.Name
-			local EnemyHRP = Enemy.HumanoidRootPart
-			
-			-- [[ THE FIX: POSITION BEHIND ENEMY ]] --
-			-- We use CFrame * CFrame.new(0,0,distance) to go behind
-			-- 0,0,4 means 4 studs backwards from where the enemy is facing
-			local BehindPos = EnemyHRP.CFrame * CFrame.new(0, 0, Settings.Distance)
-			
-			-- Tween or Set CFrame
-			HRP.CFrame = BehindPos
-			
-			-- FORCE FACE THE ENEMY (Crucial for hits to register)
-			HRP.CFrame = CFrame.new(HRP.Position, EnemyHRP.Position)
-			
-			-- NoClip & No Physics
-			HRP.Velocity = Vector3.new(0,0,0)
-			for _, part in pairs(Char:GetDescendants()) do
-				if part:IsA("BasePart") then part.CanCollide = false end
-			end
-		else
-			StatusLabel.Text = "Scanning..."
-		end
-	end
+--// Infinite Ability (Conceptual - manipulates ability cooldowns)
+spawn(function()
+    while wait() do -- Could use RunService.Heartbeat for higher frequency
+        if Settings.InfiniteAbility then
+            -- Common method: Find ability scripts (e.g., Geppo, Soru, Buso) in Character
+            -- Manipulate internal cooldown variables using debug.setupvalue/getupvalues
+            -- This is extremely exploit-dependent and fragile
+            -- Example for Geppo:
+            for _, scr in pairs(Character:GetChildren()) do
+                if scr.Name == "Geppo" and scr:IsA("LocalScript") then
+                    -- Search for the script's environment and modify cooldown values
+                    -- Requires advanced scripting techniques (getgc, getfenv, setupvalue)
+                    -- Often patched by games
+                end
+            end
+        end
+    end
 end)
+
+print("Blox Fruit Script Framework Loaded (Conceptual)")
+print("Features like Auto Farm, Fast Attack, etc., require complex implementation.")
+print("This is a simplified representation using basic concepts.")
+print("Actual scripts are much larger and more complex.")
+print("USE AT YOUR OWN RISK - VIOLATES ROBLOX TERMS OF SERVICE")
