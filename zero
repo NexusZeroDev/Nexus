@@ -1,60 +1,142 @@
--- 1. CLEANUP: Check if the GUI already exists and delete it (so you don't get duplicates)
-if game.CoreGui:FindFirstChild("MyToggleGUI") then
-	game.CoreGui.MyToggleGUI:Destroy()
+-- [[ NEXUS ZERO SCRIPT ]] --
+
+-- 1. CLEANUP PREVIOUS GUI
+if game.CoreGui:FindFirstChild("NexusFPSGUI") then
+	game.CoreGui.NexusFPSGUI:Destroy()
 end
 
--- 2. CREATE THE GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MyToggleGUI"
-screenGui.Parent = game.CoreGui -- Putting it in CoreGui hides it from the game somewhat
+-- 2. VARIABLES & SERVICES
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
 
--- 3. CREATE THE BUTTON
-local button = Instance.new("TextButton")
-button.Name = "ToggleButton"
-button.Parent = screenGui
-button.Size = UDim2.new(0, 150, 0, 50) -- Size: 150px wide, 50px tall
-button.Position = UDim2.new(0.5, -75, 0.1, 0) -- Position: Top Center
-button.Font = Enum.Font.SourceSansBold
-button.TextSize = 20
-button.Text = "OFF"
-button.BackgroundColor3 = Color3.fromRGB(255, 80, 80) -- Start Red
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- Add rounded corners to make it look nice
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 10)
-uiCorner.Parent = button
-
--- 4. THE TOGGLE LOGIC
 local isOn = false
+local initialFPS = 0
+local currentFPS = 0
 
+-- 3. CREATE UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NexusFPSGUI"
+screenGui.Parent = game.CoreGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Parent = screenGui
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.Size = UDim2.new(0, 200, 0, 130)
+mainFrame.Position = UDim2.new(0.05, 0, 0.1, 0) -- Top Left area
+mainFrame.BorderSizePixel = 0
+
+-- Rounded Corners
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = mainFrame
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Parent = mainFrame
+title.Text = "NEXUS ZERO"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+
+-- FPS Labels
+local beforeLabel = Instance.new("TextLabel")
+beforeLabel.Parent = mainFrame
+beforeLabel.Text = "Before FPS: --"
+beforeLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+beforeLabel.Font = Enum.Font.Gotham
+beforeLabel.TextSize = 14
+beforeLabel.Size = UDim2.new(1, 0, 0, 20)
+beforeLabel.Position = UDim2.new(0, 0, 0, 30)
+beforeLabel.BackgroundTransparency = 1
+
+local currentLabel = Instance.new("TextLabel")
+currentLabel.Parent = mainFrame
+currentLabel.Text = "Current FPS: --"
+currentLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+currentLabel.Font = Enum.Font.GothamBold
+currentLabel.TextSize = 14
+currentLabel.Size = UDim2.new(1, 0, 0, 20)
+currentLabel.Position = UDim2.new(0, 0, 0, 50)
+currentLabel.BackgroundTransparency = 1
+
+-- Toggle Button
+local button = Instance.new("TextButton")
+button.Parent = mainFrame
+button.Size = UDim2.new(0, 160, 0, 35)
+button.Position = UDim2.new(0.5, -80, 0.7, 0)
+button.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+button.Text = "BOOST OFF"
+button.Font = Enum.Font.GothamBold
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextSize = 14
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = button
+
+-- 4. FPS CALCULATION LOOP
+RunService.RenderStepped:Connect(function(deltaTime)
+	currentFPS = math.floor(1 / deltaTime)
+	currentLabel.Text = "Current FPS: " .. currentFPS
+end)
+
+-- 5. FUNCTIONS
+local function ApplyBoost()
+	-- 1. Save the FPS at the moment of clicking
+	initialFPS = currentFPS
+	beforeLabel.Text = "Before FPS: " .. initialFPS
+	
+	-- 2. HDR EFFECT (Color Correction)
+	local CC = Instance.new("ColorCorrectionEffect")
+	CC.Name = "NexusHDR"
+	CC.Saturation = 0.4      -- Make colors pop
+	CC.Contrast = 0.2        -- Sharpen image
+	CC.Parent = Lighting
+	
+	local Bloom = Instance.new("BloomEffect")
+	Bloom.Name = "NexusBloom"
+	Bloom.Intensity = 0.3
+	Bloom.Size = 10
+	Bloom.Parent = Lighting
+
+	-- 3. FPS BOOST (Lower Quality)
+	Lighting.GlobalShadows = false
+	Lighting.FogEnd = 9e9
+	
+	-- Turn all parts into Smooth Plastic (Reduces lag significantly)
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then
+			v.Material = Enum.Material.SmoothPlastic
+			v.CastShadow = false
+		elseif v:IsA("Texture") or v:IsA("Decal") then
+			v.Transparency = 1 -- Hide textures
+		end
+	end
+end
+
+local function RemoveBoost()
+	-- It is hard to fully "undo" a texture deletion without rejoining,
+	-- but we can remove the HDR effects.
+	if Lighting:FindFirstChild("NexusHDR") then Lighting.NexusHDR:Destroy() end
+	if Lighting:FindFirstChild("NexusBloom") then Lighting.NexusBloom:Destroy() end
+	Lighting.GlobalShadows = true
+end
+
+-- 6. BUTTON LOGIC
 button.MouseButton1Click:Connect(function()
-	isOn = not isOn -- Flip the state
+	isOn = not isOn
 	
 	if isOn then
-		-- VISUALS: Turn Green
-		button.Text = "ON"
-		button.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
-		
-		-------------------------------------------------------
-		-- [[ YOUR ON CODE GOES HERE ]]
-		print("Enabled!")
-		
-		-- Example: Super Speed
-		game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 50
-		-------------------------------------------------------
-		
+		button.Text = "BOOST ACTIVE"
+		button.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+		ApplyBoost()
 	else
-		-- VISUALS: Turn Red
-		button.Text = "OFF"
-		button.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-		
-		-------------------------------------------------------
-		-- [[ YOUR OFF CODE GOES HERE ]]
-		print("Disabled!")
-		
-		-- Example: Reset Speed
-		game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-		-------------------------------------------------------
+		button.Text = "BOOST OFF"
+		button.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+		RemoveBoost()
 	end
 end)
