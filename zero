@@ -1,7 +1,7 @@
--- [[ NEXA HUB v9 - ATTACK FIX ]] --
-print("LOADING NEXA HUB v9...")
+-- [[ NEXA HUB v10 - AUTO CLICK FIXED ]] --
+print("LOADING NEXA HUB v10...")
 
--- 1. CLEANUP OLD GUI
+-- 1. CLEANUP
 if game.CoreGui:FindFirstChild("NexaHubUI") then
 	game.CoreGui.NexaHubUI:Destroy()
 end
@@ -9,87 +9,72 @@ end
 -- 2. SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Lighting = game:GetService("Lighting")
-local UserInputService = game:GetService("UserInputService")
-
+local VirtualInputManager = game:GetService("VirtualInputManager") -- NEW SERVICE
 local LocalPlayer = Players.LocalPlayer
 
 -- 3. SETTINGS
 local Settings = {
 	AutoFarm = false,
 	ChestFarm = false,
-	FPSBoost = false,
-	FarmDistance = 7, -- LOWERED DISTANCE so hits actually register
-	Smoothness = 0.2, 
+	FarmDistance = 7, 
+	Smoothness = 0.3,
 	IgnoredChests = {}
 }
 
--- 4. GUI CREATION
+-- 4. GUI SETUP
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- ===========================
---    MAIN FRAME
--- ===========================
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.Size = UDim2.new(0, 220, 0, 250) 
-MainFrame.Position = UDim2.new(0.5, -110, 0.4, 0) 
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Size = UDim2.new(0, 250, 0, 180) 
+MainFrame.Position = UDim2.new(0.5, -125, 0.4, 0) 
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "NEXA HUB v9"
+Title.Text = "NEXA HUB v10 (Click Fix)"
 Title.TextColor3 = Color3.fromRGB(255, 170, 0)
 Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 18
+Title.TextSize = 16
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = MainFrame
 StatusLabel.Text = "Status: Idle"
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 StatusLabel.TextSize = 12
 StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0.9, -5)
+StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
 StatusLabel.BackgroundTransparency = 1
 
--- BUTTONS
-local function CreateBtn(text, pos, callback)
-	local Btn = Instance.new("TextButton")
-	Btn.Parent = MainFrame
-	Btn.Size = UDim2.new(0, 180, 0, 35)
-	Btn.Position = UDim2.new(0.5, -90, pos, 0)
-	Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-	Btn.Text = text
-	Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	Btn.Font = Enum.Font.GothamBold
-	Btn.TextSize = 14
-	
-	local Corner = Instance.new("UICorner")
-	Corner.CornerRadius = UDim.new(0, 6)
-	Corner.Parent = Btn
-	
-	Btn.MouseButton1Click:Connect(function()
-		callback(Btn)
-	end)
-	return Btn
+-- 5. THE FIXED AUTO CLICK FUNCTION
+function AutoClick()
+	-- METHOD 1: VirtualInputManager (Simulates Real Mouse Click)
+	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+	task.wait(0.05)
+	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+
+	-- METHOD 2: Force Tool Activation (Backup if click fails)
+	local Char = LocalPlayer.Character
+	if Char then
+		local Tool = Char:FindFirstChildOfClass("Tool")
+		if Tool then
+			Tool:Activate()
+		end
+	end
 end
 
--- 5. LOGIC & FUNCTIONS
-
-local function GetNearestEnemy()
+-- 6. FINDING TARGETS
+function GetNearestEnemy()
 	local ClosestDist = 500
 	local Target = nil
-	
-	-- Try to find a folder named "Enemies" or "Mobs", otherwise search workspace
 	local SearchFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
 	
 	for _, v in pairs(SearchFolder:GetChildren()) do
@@ -107,130 +92,77 @@ local function GetNearestEnemy()
 	return Target
 end
 
-local function GetNearestChest()
-	local ClosestDist = 99999
-	local Target = nil
-	local Char = LocalPlayer.Character
-	if not Char or not Char:FindFirstChild("HumanoidRootPart") then return nil end
+-- 7. LOOPS
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = MainFrame
+ToggleBtn.Size = UDim2.new(0, 200, 0, 40)
+ToggleBtn.Position = UDim2.new(0.5, -100, 0.3, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ToggleBtn.Text = "Mob Farm: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 14
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 6)
+Corner.Parent = ToggleBtn
 
-	for _, v in pairs(workspace:GetDescendants()) do
-		-- Look for parts with "Chest" in the name
-		if (string.find(v.Name, "Chest") or string.find(v.Name, "Crate")) and (v:IsA("Part") or v:IsA("Model")) then
-			if table.find(Settings.IgnoredChests, v) then continue end
-			
-			local Pos = v:IsA("Model") and (v.PrimaryPart and v.PrimaryPart.Position or v:GetPivot().Position) or v.Position
-			local Dist = (Char.HumanoidRootPart.Position - Pos).Magnitude
-			
-			if Dist < ClosestDist then
-				ClosestDist = Dist
-				Target = v
-			end
-		end
-	end
-	return Target
-end
-
--- [[ FIXED ATTACK FUNCTION ]] --
-local function AutoEquipAndAttack()
-	local Char = LocalPlayer.Character
-	if not Char then return end
-	
-	-- 1. EQUIP TOOL
-	local Tool = Char:FindFirstChildOfClass("Tool")
-	if not Tool then
-		-- Check backpack
-		local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-		if BackpackTool then
-			BackpackTool.Parent = Char
-			Tool = BackpackTool
-		end
-	end
-
-	-- 2. ATTACK METHOD
-	if Tool then
-		Tool:Activate() -- Method 1: Built-in Roblox Activate
+ToggleBtn.MouseButton1Click:Connect(function()
+	Settings.AutoFarm = not Settings.AutoFarm
+	if Settings.AutoFarm then
+		ToggleBtn.Text = "Mob Farm: ON"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
 	else
-		-- If no tool, try clicking anyway (for fighting styles)
-		VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-		task.wait(0.1)
-		VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+		ToggleBtn.Text = "Mob Farm: OFF"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	end
-end
+end)
 
--- [[ SEPARATE THREAD FOR ATTACKING ]] --
--- This runs separately from movement so it doesn't lag
+-- SEPARATE ATTACK LOOP (Prevents Lag)
 task.spawn(function()
 	while true do
 		if Settings.AutoFarm then
-			pcall(function()
-				AutoEquipAndAttack()
-			end)
+			-- Only click if we have a target and we are close
+			local Enemy = GetNearestEnemy()
+			if Enemy then
+				local Char = LocalPlayer.Character
+				if Char and Char:FindFirstChild("HumanoidRootPart") then
+					local Dist = (Char.HumanoidRootPart.Position - Enemy.HumanoidRootPart.Position).Magnitude
+					if Dist < 15 then -- Only click if close
+						AutoClick()
+					end
+				end
+			end
 		end
-		task.wait(0.2) -- Attack Speed (Adjust this if too slow/fast)
+		-- Adjust Speed here (0.1 is fast, 0.5 is slow)
+		task.wait(0.2) 
 	end
 end)
 
--- [[ MOVEMENT LOOP ]] --
+-- MOVEMENT LOOP
 RunService.RenderStepped:Connect(function()
-	local Char = LocalPlayer.Character
-	if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
-	local HRP = Char.HumanoidRootPart
-
-	-- Disable Physics for flying
-	if Settings.AutoFarm or Settings.ChestFarm then
-		HRP.Velocity = Vector3.new(0,0,0) 
-		for _, part in pairs(Char:GetDescendants()) do
-			if part:IsA("BasePart") then part.CanCollide = false end
-		end
-	end
-
 	if Settings.AutoFarm then
+		local Char = LocalPlayer.Character
+		if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
+		local HRP = Char.HumanoidRootPart
+
+		-- Auto Equip Tool if not held
+		local Tool = Char:FindFirstChildOfClass("Tool")
+		if not Tool then
+			local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+			if BackpackTool then BackpackTool.Parent = Char end
+		end
+
 		local Enemy = GetNearestEnemy()
 		if Enemy then
-			StatusLabel.Text = "Target: " .. Enemy.Name
+			StatusLabel.Text = "Killing: " .. Enemy.Name
 			local EnemyPos = Enemy.HumanoidRootPart.Position
-			-- Teleport Behind/Above Enemy
+			-- Teleport Behind Enemy
 			local TargetCFrame = CFrame.new(EnemyPos + Vector3.new(0, 0, Settings.FarmDistance), EnemyPos)
-			HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
-		else
-			StatusLabel.Text = "Scanning for mobs..."
-		end
-	
-	elseif Settings.ChestFarm then
-		local Chest = GetNearestChest()
-		if Chest then
-			StatusLabel.Text = "Chest: " .. Chest.Name
-			local ChestPos = Chest:IsA("Model") and (Chest.PrimaryPart and Chest.PrimaryPart.Position or Chest:GetPivot().Position) or Chest.Position
 			
-			local Dist = (HRP.Position - ChestPos).Magnitude
-			if Dist < 5 then
-				table.insert(Settings.IgnoredChests, Chest)
-				Char.Humanoid.Jump = true -- Jump to collect
-				task.wait(0.5)
-			else
-				HRP.CFrame = HRP.CFrame:Lerp(CFrame.new(ChestPos), Settings.Smoothness)
-			end
+			HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
+			HRP.Velocity = Vector3.new(0,0,0) -- Stop Falling
 		else
-			StatusLabel.Text = "No Chests Found"
+			StatusLabel.Text = "Scanning..."
 		end
 	end
-end)
-
--- 6. BUTTON CONFIG
-local FarmBtn = CreateBtn("Mob Farm: OFF", 0.2, function(btn)
-	Settings.AutoFarm = not Settings.AutoFarm
-	Settings.ChestFarm = false
-	btn.Text = Settings.AutoFarm and "Mob Farm: ON" or "Mob Farm: OFF"
-	btn.BackgroundColor3 = Settings.AutoFarm and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(45, 45, 45)
-end)
-
-local ChestBtn = CreateBtn("Chest Farm: OFF", 0.4, function(btn)
-	Settings.ChestFarm = not Settings.ChestFarm
-	Settings.AutoFarm = false
-	btn.Text = Settings.ChestFarm and "Chest Farm: ON" or "Chest Farm: OFF"
-	btn.BackgroundColor3 = Settings.ChestFarm and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(45, 45, 45)
-end)
-
-local CloseBtn = CreateBtn("Close UI", 0.7, function(btn)
-	ScreenGui:Destroy()
 end)
