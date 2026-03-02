@@ -1,5 +1,5 @@
--- [[ NEXA HUB v4.0 - PREMIUM SUITE ]] --
--- Features: Slide-Swap UI, Speed/Jump, Combat, Safety, Optimization
+-- [[ NEXA HUB v4.1 - ADVANCED ESP EDITION ]] --
+-- Features: Slide-Swap UI, Detailed Player ESP, Speed/Jump, Combat, Safety
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -33,7 +33,7 @@ local State = {
 	SafeMode = false,
 	SafeHP = 10000,
 	AimLock = false,
-	AimTarget = "Players", -- "Players" or "Mobs"
+	AimTarget = "Players", 
 	ESP = false
 }
 
@@ -131,115 +131,125 @@ local function AddList(items)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = Content; Layout.Padding = UDim.new(0, 6); Layout.SortOrder = Enum.SortOrder.LayoutOrder
 end
 
--- 5. LOGIC LOOPS (RUNTIME)
+-- ===========================
+--     ADVANCED ESP SYSTEM
+-- ===========================
+
+local function RemoveESP()
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v.Name == "NexaESP" or v.Name == "NexaInfo" then v:Destroy() end
+	end
+end
+
+local function DrawESP(char, player)
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+	if char:FindFirstChild("NexaESP") then return end -- Already has ESP
+
+	-- 1. Determine Team/Faction Color
+	local TeamColor = Color3.fromRGB(255, 255, 255) -- Default White
+	local FactionText = "Player"
+
+	if player.Team then
+		local tName = string.lower(player.Team.Name)
+		if string.find(tName, "pirate") then
+			TeamColor = Color3.fromRGB(255, 60, 60) -- RED for Pirates
+			FactionText = "Pirate"
+		elseif string.find(tName, "marine") then
+			TeamColor = Color3.fromRGB(60, 150, 255) -- BLUE for Marines
+			FactionText = "Marine"
+		end
+	end
+
+	-- 2. Create Highlight (Chams)
+	local HL = Instance.new("Highlight")
+	HL.Name = "NexaESP"
+	HL.Parent = char
+	HL.FillColor = TeamColor
+	HL.OutlineColor = Color3.new(1,1,1)
+	HL.FillTransparency = 0.6
+	HL.OutlineTransparency = 0.2
+
+	-- 3. Create Text Info (Billboard)
+	local BG = Instance.new("BillboardGui")
+	BG.Name = "NexaInfo"
+	BG.Parent = char.HumanoidRootPart
+	BG.Size = UDim2.new(0, 200, 0, 50)
+	BG.StudsOffset = Vector3.new(0, 3.5, 0) -- Above Head
+	BG.AlwaysOnTop = true
+
+	local InfoLabel = Instance.new("TextLabel")
+	InfoLabel.Parent = BG
+	InfoLabel.Size = UDim2.new(1, 0, 1, 0)
+	InfoLabel.BackgroundTransparency = 1
+	InfoLabel.Font = Enum.Font.GothamBold
+	InfoLabel.TextStrokeTransparency = 0
+	InfoLabel.TextColor3 = TeamColor
+	InfoLabel.TextSize = 12
+	InfoLabel.Text = "Loading..." -- Placeholder
+	
+	-- Store references for the Update loop
+	BG:SetAttribute("Faction", FactionText)
+end
+
+-- ===========================
+--     RUNTIME LOOPS
+-- ===========================
+
 RunService.RenderStepped:Connect(function()
 	local Char = LocalPlayer.Character
 	if not Char then return end
 	local Hum = Char:FindFirstChild("Humanoid")
 	local HRP = Char:FindFirstChild("HumanoidRootPart")
 	
-	-- SPEED & JUMP
-	if Hum and State.SpeedEnabled then
-		Hum.WalkSpeed = State.SpeedAmt
-	end
-	if Hum then
-		Hum.JumpPower = State.JumpAmt
-	end
+	-- LOGIC: SPEED, JUMP, WATER, STUN
+	if Hum and State.SpeedEnabled then Hum.WalkSpeed = State.SpeedAmt end
+	if Hum then Hum.JumpPower = State.JumpAmt end
 	
-	-- WALK ON WATER
 	if HRP and State.WalkWater then
 		local Platform = workspace:FindFirstChild("NexaWaterPlat")
 		if not Platform then
-			Platform = Instance.new("Part")
-			Platform.Name = "NexaWaterPlat"
-			Platform.Parent = workspace
-			Platform.Anchored = true
-			Platform.Transparency = 1
-			Platform.Size = Vector3.new(20, 1, 20)
-			Platform.CanCollide = true
+			Platform = Instance.new("Part"); Platform.Name = "NexaWaterPlat"; Platform.Parent = workspace; Platform.Anchored = true; Platform.Transparency = 1; Platform.Size = Vector3.new(20, 1, 20); Platform.CanCollide = true
 		end
-		-- Keep under feet, level at Y=-2 (Water level approx)
 		Platform.CFrame = CFrame.new(HRP.Position.X, -2, HRP.Position.Z)
 	else
 		if workspace:FindFirstChild("NexaWaterPlat") then workspace.NexaWaterPlat:Destroy() end
 	end
 	
-	-- ANTI STUN
 	if Hum and State.AntiStun then
-		Hum.PlatformStand = false
-		Hum.Sit = false
-		if Hum:GetState() == Enum.HumanoidStateType.Physics then
-			Hum:ChangeState(Enum.HumanoidStateType.Running)
-		end
+		Hum.PlatformStand = false; Hum.Sit = false
+		if Hum:GetState() == Enum.HumanoidStateType.Physics then Hum:ChangeState(Enum.HumanoidStateType.Running) end
 	end
 	
-	-- SAFE MODE
-	if Hum and State.SafeMode then
-		if Hum.Health < State.SafeHP and Hum.Health > 0 then
-			if HRP then
-				HRP.CFrame = HRP.CFrame + Vector3.new(0, 500, 0)
-				HRP.Anchored = true
-			end
-		end
+	if Hum and State.SafeMode and Hum.Health < State.SafeHP and Hum.Health > 0 and HRP then
+		HRP.CFrame = HRP.CFrame + Vector3.new(0, 500, 0); HRP.Anchored = true
 	end
-	
-	-- AIM LOCK / AIM NEAR
-	if State.AimLock and HRP then
-		local Closest = nil
-		local ShortestDist = 9999
-		local SearchFolder = (State.AimTarget == "Mobs") and (workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace) or Players
-		
-		if State.AimTarget == "Mobs" then
-			for _,v in pairs(SearchFolder:GetChildren()) do
-				if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-					local dist = (v.HumanoidRootPart.Position - HRP.Position).Magnitude
-					if dist < ShortestDist then ShortestDist = dist; Closest = v.HumanoidRootPart end
+
+	-- LOGIC: ESP UPDATER
+	if State.ESP then
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer and p.Character then
+				-- Add ESP if missing
+				if not p.Character:FindFirstChild("NexaESP") then
+					DrawESP(p.Character, p)
 				end
-			end
-		else
-			for _,v in pairs(Players:GetPlayers()) do
-				if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-					local dist = (v.Character.HumanoidRootPart.Position - HRP.Position).Magnitude
-					if dist < ShortestDist then ShortestDist = dist; Closest = v.Character.HumanoidRootPart end
+				
+				-- Update Text
+				local InfoGUI = p.Character:FindFirstChild("HumanoidRootPart") and p.Character.HumanoidRootPart:FindFirstChild("NexaInfo")
+				local pHum = p.Character:FindFirstChild("Humanoid")
+				
+				if InfoGUI and InfoGUI:FindFirstChild("TextLabel") and HRP and pHum then
+					local Dist = math.floor((HRP.Position - p.Character.HumanoidRootPart.Position).Magnitude)
+					local HP = math.floor((pHum.Health / pHum.MaxHealth) * 100)
+					local Fac = InfoGUI:GetAttribute("Faction") or "Player"
+					
+					InfoGUI.TextLabel.Text = string.format("[%s] %s\nHP: %d%% | Dist: %dm", Fac, p.Name, HP, Dist)
 				end
 			end
 		end
-		
-		if Closest then
-			Camera.CFrame = CFrame.new(Camera.CFrame.Position, Closest.Position)
-		end
+	else
+		RemoveESP()
 	end
 end)
-
--- ESP Function
-local function UpdateESP()
-	for _,v in pairs(workspace:GetDescendants()) do
-		if v:IsA("Highlight") and v.Name == "NexaESP" then v:Destroy() end
-	end
-	
-	if not State.ESP then return end
-	
-	local function Highlight(model, color)
-		local h = Instance.new("Highlight")
-		h.Name = "NexaESP"
-		h.Parent = model
-		h.FillColor = color
-		h.OutlineColor = Color3.new(1,1,1)
-		h.FillTransparency = 0.5
-	end
-	
-	-- ESP Logic (Simple refresh)
-	for _, p in pairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and p.Character then Highlight(p.Character, Color3.fromRGB(255, 0, 0)) end
-	end
-	
-	local MobFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs")
-	if MobFolder then
-		for _, m in pairs(MobFolder:GetChildren()) do
-			if m:FindFirstChild("Humanoid") then Highlight(m, Color3.fromRGB(255, 170, 0)) end
-		end
-	end
-end
 
 -- 6. TAB SYSTEM
 local function LoadTab(name)
@@ -254,24 +264,16 @@ local function LoadTab(name)
 		AddToggle("Anti-Stun", State.AntiStun, function(v) State.AntiStun = v end)
 		AddToggle("High Performance (Low Gfx)", State.HighPerf, function(v)
 			State.HighPerf = v
-			if v then
-				setfpscap(30)
-				Lighting.GlobalShadows = false
-			else
-				setfpscap(999)
-				Lighting.GlobalShadows = true
-			end
+			if v then setfpscap(30); Lighting.GlobalShadows = false
+			else setfpscap(999); Lighting.GlobalShadows = true end
 		end)
 	
 	elseif name == "Combat" then
 		AddToggle("Aim Lock", State.AimLock, function(v) State.AimLock = v end)
 		AddToggle("Aim Target: Players (Off = Mobs)", true, function(v) State.AimTarget = v and "Players" or "Mobs" end)
-		AddToggle("ESP (Players & Mobs)", State.ESP, function(v) 
+		AddToggle("Advanced ESP (HP/Dist/Team)", State.ESP, function(v) 
 			State.ESP = v 
-			task.spawn(function()
-				while State.ESP do UpdateESP(); task.wait(3) end -- Update ESP every 3s
-				UpdateESP() -- Clear
-			end)
+			if not v then RemoveESP() end
 		end)
 		
 	elseif name == "Safety" then
