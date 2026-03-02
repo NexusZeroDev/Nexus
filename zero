@@ -1,14 +1,12 @@
--- [[ NEXA FRUIT SEEKER v1.2 - EMERGENCY SAFEGUARD ]] --
-print("LOADING FRUIT SEEKER v1.2...")
+-- [[ NEXA FRUIT SEEKER v1.3 - INSTANT HOP & BRING ]] --
+print("LOADING FRUIT SEEKER v1.3...")
 
 -- 1. CONFIGURATION
 local Settings = {
 	TweenSpeed = 300,      -- Speed of flight
-	PickupDistance = 5,    
-	ServerHopDelay = 5,    
 	SafeHeight = 800,      -- Teleport Up Height
 	EmergencyHP = 1000,    -- HOP IF HP DROPS BELOW THIS
-	MaxServerTime = 300    -- HOP IF SERVER TIME > 5 MINS (300s)
+	MaxServerTime = 300    -- HOP IF SERVER TIME > 5 MINS
 }
 
 -- 2. SERVICES
@@ -29,7 +27,7 @@ ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Size = UDim2.new(0, 300, 0, 100)
 MainFrame.Position = UDim2.new(0.5, -150, 0.1, 0)
 MainFrame.Active = true
@@ -41,8 +39,8 @@ UICorner.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "FRUIT SEEKER v1.2"
-Title.TextColor3 = Color3.fromRGB(255, 50, 50)
+Title.Text = "FRUIT SEEKER v1.3"
+Title.TextColor3 = Color3.fromRGB(255, 170, 0)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 18
 Title.Size = UDim2.new(1, 0, 0, 30)
@@ -73,7 +71,7 @@ local JoinTime = tick()
 
 -- 4. UTILITY FUNCTIONS
 local function Notify(msg)
-	StarterGui:SetCore("SendNotification", {Title = "Fruit Seeker"; Text = msg; Duration = 5;})
+	StarterGui:SetCore("SendNotification", {Title = "Fruit Seeker"; Text = msg; Duration = 3;})
 end
 
 local function SetStatus(text)
@@ -106,17 +104,17 @@ local function GoToSafeZone()
 	end
 end
 
--- 5. SERVER HOP LOGIC
+-- 5. SERVER HOP LOGIC (INSTANT)
 function ServerHop()
 	if IsHopping then return end
 	IsHopping = true
-	Running = false -- Stop scanning loop
+	Running = false 
 
 	SetStatus("EMERGENCY ESCAPE...")
-	GoToSafeZone() -- Immediate Safety
-	task.wait(0.5)
+	GoToSafeZone() -- Teleport Up
+	task.wait(0.2)
 
-	Notify("Finding Server...")
+	Notify("Scanning Servers...")
 	
 	local PlaceID = game.PlaceId
 	local AllIDs = {}
@@ -149,7 +147,7 @@ function ServerHop()
 						SetStatus("Hopping...")
 						TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
 					end)
-					wait(4)
+					wait(2)
 				end
 			end
 		end
@@ -157,7 +155,7 @@ function ServerHop()
 	pcall(function() TPReturner() end)
 end
 
--- 6. SAFETY MONITORS (NEW)
+-- 6. SAFETY MONITORS
 task.spawn(function()
 	while Running do
 		wait(1)
@@ -165,7 +163,7 @@ task.spawn(function()
 		
 		-- TIME CHECK (5 Minutes)
 		if (tick() - JoinTime) >= Settings.MaxServerTime then
-			Notify("Time Limit (5m) Reached. Hopping...")
+			Notify("Time Limit Reached. Hopping...")
 			ServerHop()
 		end
 		
@@ -174,7 +172,7 @@ task.spawn(function()
 		if Char then
 			local Hum = Char:FindFirstChild("Humanoid")
 			if Hum and Hum.Health > 0 and Hum.Health <= Settings.EmergencyHP then
-				Notify("⚠️ LOW HP (<1000)! Emergency Hop!")
+				Notify("⚠️ LOW HP! Escaping...")
 				ServerHop()
 			end
 		end
@@ -208,7 +206,6 @@ function TweenTo(targetPart)
 		task.wait(0.1)
 		Waited = Waited + 0.1
 	end
-	
 	EnableNoClip(false)
 	return true
 end
@@ -239,7 +236,7 @@ end)
 
 task.spawn(function()
 	while Running do
-		wait(1)
+		wait(0.5) -- Fast Scan
 		if IsHopping then break end
 		
 		local Fruit = FindFruit()
@@ -249,28 +246,46 @@ task.spawn(function()
 			Notify("Target: " .. FruitName)
 			
 			local TargetPart = Fruit:FindFirstChild("Handle") or Fruit:FindFirstChild("Main") or Fruit
+			local HRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 			
-			local Success = TweenTo(TargetPart)
-			if Success and not IsHopping then
-				SetStatus("Collecting...")
-				if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-					LocalPlayer.Character.HumanoidRootPart.CFrame = TargetPart.CFrame
-				end
-				task.wait(0.5)
+			if HRP and TargetPart then
+				-- [[ ATTEMPT TO BRING FRUIT TO CHARACTER (ONCE) ]]
+				pcall(function()
+					-- Try to set Fruit CFrame to Player
+					TargetPart.CFrame = HRP.CFrame
+					-- Try to set Network Ownership if possible (hidden logic)
+					if TargetPart:IsA("BasePart") then
+						sethiddenproperty(TargetPart, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+					end
+				end)
+				task.wait(0.1)
+
+				-- [[ CHECK DISTANCE ]] 
+				-- If Bring worked, Distance is 0. If failed (Anchored), Distance is high.
+				local Dist = (HRP.Position - TargetPart.Position).Magnitude
 				
-				if TargetPart:IsA("BasePart") and LocalPlayer.Character.HumanoidRootPart then
-					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, TargetPart, 0)
+				if Dist > 10 then
+					-- Bring failed (Fruit is Anchored/Server Sided), we MUST tween there
+					SetStatus("Flying to Fruit...")
+					TweenTo(TargetPart)
+				else
+					-- Bring worked!
+					SetStatus("Fruit Brought!")
+				end
+
+				-- Final Collection
+				if TargetPart:IsA("BasePart") then
+					firetouchinterest(HRP, TargetPart, 0)
 					task.wait(0.1)
-					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, TargetPart, 1)
+					firetouchinterest(HRP, TargetPart, 1)
 				end
 				
-				Notify("Collected " .. FruitName)
-				task.wait(2)
+				Notify("Processed " .. FruitName)
+				task.wait(1) 
 			end
 		else
-			SetStatus("No Fruits. Hopping in " .. Settings.ServerHopDelay .. "s")
-			Notify("No Fruit. Preparing to Hop...")
-			task.wait(Settings.ServerHopDelay)
+			-- NO DELAY - INSTANT HOP
+			SetStatus("No Fruits. HOPPING NOW.")
 			ServerHop()
 		end
 	end
