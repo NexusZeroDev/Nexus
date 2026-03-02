@@ -1,165 +1,228 @@
--- [[ NEXUS ZERO SCRIPT v2 - STABILITY MODE ]] --
+-- [[ NEXA HUB - BLOX FRUITS EDITION ]] --
 
--- 1. CLEANUP PREVIOUS GUI
-if game.CoreGui:FindFirstChild("NexusFPSGUI") then
-	game.CoreGui.NexusFPSGUI:Destroy()
+-- 1. CLEANUP OLD GUI
+if game.CoreGui:FindFirstChild("NexaHubUI") then
+	game.CoreGui.NexaHubUI:Destroy()
 end
 
--- 2. VARIABLES & SERVICES
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
+-- 2. SERVICES
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local VirtualUser = game:GetService("VirtualUser")
 
-local isOn = false
-local initialFPS = 0
-local currentFPS = 0
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
--- 3. CREATE UI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "NexusFPSGUI"
-screenGui.Parent = game.CoreGui
+-- 3. SETTINGS
+local Settings = {
+	AutoFarm = false,
+	FPSBoost = false,
+	FarmDistance = 25, -- How high above the mob to stand
+	TweenSpeed = 250   -- How fast you fly (Higher = Faster)
+}
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Parent = screenGui
-mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-mainFrame.Size = UDim2.new(0, 200, 0, 150) -- Made slightly taller
-mainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
-mainFrame.BorderSizePixel = 0
+-- 4. GUI CREATION
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NexaHubUI"
+ScreenGui.Parent = game.CoreGui
 
--- Rounded Corners
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 8)
-uiCorner.Parent = mainFrame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 250, 0, 250)
+MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true -- You can drag the UI now!
 
--- Title
-local title = Instance.new("TextLabel")
-title.Parent = mainFrame
-title.Text = "NEXUS ZERO"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundTransparency = 1
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
 
--- FPS Labels
-local beforeLabel = Instance.new("TextLabel")
-beforeLabel.Parent = mainFrame
-beforeLabel.Text = "Before FPS: --"
-beforeLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-beforeLabel.Font = Enum.Font.Gotham
-beforeLabel.TextSize = 14
-beforeLabel.Size = UDim2.new(1, 0, 0, 20)
-beforeLabel.Position = UDim2.new(0, 0, 0, 30)
-beforeLabel.BackgroundTransparency = 1
+-- Title Bar
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Text = "NEXA HUB | Blox Fruits"
+Title.TextColor3 = Color3.fromRGB(255, 170, 0) -- Orange Theme
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 18
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
 
-local currentLabel = Instance.new("TextLabel")
-currentLabel.Parent = mainFrame
-currentLabel.Text = "Current FPS: --"
-currentLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-currentLabel.Font = Enum.Font.GothamBold
-currentLabel.TextSize = 14
-currentLabel.Size = UDim2.new(1, 0, 0, 20)
-currentLabel.Position = UDim2.new(0, 0, 0, 50)
-currentLabel.BackgroundTransparency = 1
+-- Button 1: Auto Farm
+local FarmButton = Instance.new("TextButton")
+FarmButton.Parent = MainFrame
+FarmButton.Size = UDim2.new(0, 200, 0, 40)
+FarmButton.Position = UDim2.new(0.5, -100, 0.25, 0)
+FarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+FarmButton.Text = "Auto Farm: OFF"
+FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FarmButton.Font = Enum.Font.GothamBold
+FarmButton.TextSize = 14
 
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Parent = mainFrame
-statusLabel.Text = "Status: Default"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 12
-statusLabel.Size = UDim2.new(1, 0, 0, 20)
-statusLabel.Position = UDim2.new(0, 0, 0, 70)
-statusLabel.BackgroundTransparency = 1
+local FarmCorner = Instance.new("UICorner")
+FarmCorner.CornerRadius = UDim.new(0, 6)
+FarmCorner.Parent = FarmButton
 
--- Toggle Button
-local button = Instance.new("TextButton")
-button.Parent = mainFrame
-button.Size = UDim2.new(0, 160, 0, 35)
-button.Position = UDim2.new(0.5, -80, 0.65, 0)
-button.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-button.Text = "BOOST OFF"
-button.Font = Enum.Font.GothamBold
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.TextSize = 14
+-- Button 2: FPS Boost
+local BoostButton = Instance.new("TextButton")
+BoostButton.Parent = MainFrame
+BoostButton.Size = UDim2.new(0, 200, 0, 40)
+BoostButton.Position = UDim2.new(0.5, -100, 0.5, 0)
+BoostButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+BoostButton.Text = "FPS/HDR Boost: OFF"
+BoostButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+BoostButton.Font = Enum.Font.GothamBold
+BoostButton.TextSize = 14
 
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = button
+local BoostCorner = Instance.new("UICorner")
+BoostCorner.CornerRadius = UDim.new(0, 6)
+BoostCorner.Parent = BoostButton
 
--- 4. FPS CALCULATION LOOP
-RunService.RenderStepped:Connect(function(deltaTime)
-	currentFPS = math.floor(1 / deltaTime)
-	currentLabel.Text = "Current FPS: " .. currentFPS
-end)
+-- Status Label
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = MainFrame
+StatusLabel.Text = "Status: Idle"
+StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
+StatusLabel.BackgroundTransparency = 1
 
--- 5. FUNCTIONS
-local function ApplyBoost()
-	-- 1. Save FPS
-	initialFPS = currentFPS
-	beforeLabel.Text = "Before FPS: " .. initialFPS
-	statusLabel.Text = "Status: 30 FPS Cap + HDR"
+-- 5. FUNCTIONALITY --
+
+-- Helper: Find Nearest Enemy
+function GetNearestEnemy()
+	local ClosestDist = math.huge
+	local Target = nil
 	
-	-- 2. CAP FPS AT 30 (Stability)
-	if setfpscap then
-		setfpscap(30)
-	else
-		warn("Your executor does not support setfpscap!")
-	end
-	
-	-- 3. HDR EFFECT
-	local CC = Instance.new("ColorCorrectionEffect")
-	CC.Name = "NexusHDR"
-	CC.Saturation = 0.4
-	CC.Contrast = 0.2
-	CC.Parent = Lighting
-	
-	local Bloom = Instance.new("BloomEffect")
-	Bloom.Name = "NexusBloom"
-	Bloom.Intensity = 0.3
-	Bloom.Size = 10
-	Bloom.Parent = Lighting
+	-- Look in the Enemies folder (Standard for Blox Fruits)
+	local EnemiesFolder = workspace:FindFirstChild("Enemies")
+	if not EnemiesFolder then return nil end
 
-	-- 4. REMOVE TEXTURES / SHADOWS
-	Lighting.GlobalShadows = false
-	Lighting.FogEnd = 9e9
-	
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then
-			v.Material = Enum.Material.SmoothPlastic
-			v.CastShadow = false
-		elseif v:IsA("Texture") or v:IsA("Decal") then
-			v.Transparency = 1
+	for _, v in pairs(EnemiesFolder:GetChildren()) do
+		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+			local Dist = (LocalPlayer.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+			if Dist < ClosestDist then
+				ClosestDist = Dist
+				Target = v
+			end
 		end
 	end
+	return Target
 end
 
-local function RemoveBoost()
-	statusLabel.Text = "Status: Uncapped"
+-- Helper: Tween Movement (Smooth Fly)
+function MoveTo(TargetCFrame)
+	local Character = LocalPlayer.Character
+	if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
 	
-	-- 1. UNCAP FPS
-	if setfpscap then
-		setfpscap(999) -- Uncaps fps to max
-	end
-
-	-- 2. Remove HDR
-	if Lighting:FindFirstChild("NexusHDR") then Lighting.NexusHDR:Destroy() end
-	if Lighting:FindFirstChild("NexusBloom") then Lighting.NexusBloom:Destroy() end
-	Lighting.GlobalShadows = true
+	local Root = Character.HumanoidRootPart
+	local Distance = (Root.Position - TargetCFrame.Position).Magnitude
+	local Time = Distance / Settings.TweenSpeed
+	
+	local TweenInfo = TweenInfo.new(Time, Enum.EasingStyle.Linear)
+	local Tween = TweenService:Create(Root, TweenInfo, {CFrame = TargetCFrame})
+	Tween:Play()
 end
 
--- 6. BUTTON LOGIC
-button.MouseButton1Click:Connect(function()
-	isOn = not isOn
-	
-	if isOn then
-		button.Text = "BOOST ACTIVE"
-		button.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-		ApplyBoost()
+-- Helper: Auto Click
+function Click()
+	VirtualUser:CaptureController()
+	VirtualUser:Button1Down(Vector2.new(1280, 672))
+end
+
+-- LOOP: Auto Farm Logic
+RunService.RenderStepped:Connect(function()
+	if Settings.AutoFarm then
+		local Character = LocalPlayer.Character
+		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+		
+		-- 1. Equip a Weapon (First Tool found)
+		local Tool = Character:FindFirstChildOfClass("Tool")
+		if not Tool then
+			local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+			if BackpackTool then BackpackTool.Parent = Character end
+		end
+
+		-- 2. Find Enemy
+		local Enemy = GetNearestEnemy()
+		if Enemy then
+			StatusLabel.Text = "Attacking: " .. Enemy.Name
+			
+			-- 3. Calculate Position (Above the enemy)
+			local TargetPos = Enemy.HumanoidRootPart.CFrame * CFrame.new(0, Settings.FarmDistance, 0)
+			
+			-- 4. Move there
+			MoveTo(TargetPos)
+			
+			-- 5. Look down at enemy
+			Character.HumanoidRootPart.CFrame = CFrame.new(Character.HumanoidRootPart.Position, Enemy.HumanoidRootPart.Position)
+			
+			-- 6. Attack
+			-- Try standard activation
+			if Tool then Tool:Activate() end
+			-- Try Virtual Click (Backup)
+			Click()
+			
+			-- Float Logic (Prevent falling)
+			if not Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
+				local BV = Instance.new("BodyVelocity")
+				BV.Parent = Character.HumanoidRootPart
+				BV.Velocity = Vector3.new(0, 0, 0)
+				BV.MaxForce = Vector3.new(Math.huge, Math.huge, Math.huge)
+			end
+		else
+			StatusLabel.Text = "Status: Searching for mobs..."
+			-- Remove Float if no enemy
+			if Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
+				Character.HumanoidRootPart.BodyVelocity:Destroy()
+			end
+		end
 	else
-		button.Text = "BOOST OFF"
-		button.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-		RemoveBoost()
+		-- Remove Float if turned off
+		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
+			LocalPlayer.Character.HumanoidRootPart.BodyVelocity:Destroy()
+		end
+	end
+end)
+
+-- BUTTON EVENTS
+FarmButton.MouseButton1Click:Connect(function()
+	Settings.AutoFarm = not Settings.AutoFarm
+	if Settings.AutoFarm then
+		FarmButton.Text = "Auto Farm: ON"
+		FarmButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+	else
+		FarmButton.Text = "Auto Farm: OFF"
+		FarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		StatusLabel.Text = "Status: Idle"
+	end
+end)
+
+BoostButton.MouseButton1Click:Connect(function()
+	Settings.FPSBoost = not Settings.FPSBoost
+	if Settings.FPSBoost then
+		BoostButton.Text = "FPS/HDR Boost: ON"
+		BoostButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+		
+		-- Apply Boost
+		if setfpscap then setfpscap(30) end
+		Lighting.GlobalShadows = false
+		local CC = Instance.new("ColorCorrectionEffect", Lighting)
+		CC.Name = "NexaHDR"
+		CC.Saturation = 0.5
+	else
+		BoostButton.Text = "FPS/HDR Boost: OFF"
+		BoostButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		
+		-- Remove Boost
+		if setfpscap then setfpscap(999) end
+		Lighting.GlobalShadows = true
+		if Lighting:FindFirstChild("NexaHDR") then Lighting.NexaHDR:Destroy() end
 	end
 end)
