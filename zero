@@ -24,12 +24,24 @@ local Settings = {
 	AutoFarm = false,
 	ChestFarm = false,
 	FPSBoost = false,
+	AutoQuest = false, -- NEW: Auto Quest Setting
+	ObservationFarm = false, -- NEW: Observation Farm Setting
 	FarmDistance = 12, -- Adjusted distance for better hit detection
 	Smoothness = 0.3, 
 	ServerHopDelay = 1800,
 	IgnoredChests = {},
-	CurrentTarget = nil
+	CurrentTarget = nil,
+	SelectedFruit = "", -- NEW: Selected Devil Fruit
+	ESPEnabled = false, -- NEW: ESP Setting
+	ESPFruits = false, -- NEW: ESP Fruits Setting
+	ESPChests = false, -- NEW: ESP Chests Setting
+	ESPEnemies = false, -- NEW: ESP Enemies Setting
+	ESPPlayers = false, -- NEW: ESP Players Setting
+	ESPNPCs = false, -- NEW: ESP NPCs Setting
 }
+
+-- NEW: CommF Remote for Devil Fruit and Quest Functions
+local CommF = game:GetService("ReplicatedStorage").Remotes.CommF_
 
 -- 4. GUI CREATION
 local ScreenGui = Instance.new("ScreenGui")
@@ -144,26 +156,224 @@ Title.Position = UDim2.new(0, 10, 0, 0)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
+-- NEW: Scrolling Frame for Additional Features
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Parent = MainFrame
+ScrollingFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.Size = UDim2.new(1, -20, 0, 200)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
+ScrollingFrame.ScrollBarThickness = 6
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 5, 0) -- Increased height for more content
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 5)
+
 -- BUTTONS
-local function CreateButton(name, pos, text)
+local function CreateButton(name, text, order)
 	local Btn = Instance.new("TextButton")
-	Btn.Parent = MainFrame
+	Btn.Parent = ScrollingFrame
 	Btn.Size = UDim2.new(0, 220, 0, 35)
-	Btn.Position = UDim2.new(0.5, -110, pos, 0)
+	Btn.Position = UDim2.new(0.5, -110, 0, 0) -- Initial position, will be adjusted by layout
 	Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	Btn.Text = text
 	Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	Btn.Font = Enum.Font.GothamBold
 	Btn.TextSize = 14
+	Btn.LayoutOrder = order
 	local Corner = Instance.new("UICorner")
 	Corner.CornerRadius = UDim.new(0, 6)
 	Corner.Parent = Btn
 	return Btn
 end
 
-local FarmButton = CreateButton("FarmBtn", 0.18, "Mob Farm: OFF")
-local ChestButton = CreateButton("ChestBtn", 0.35, "Chest Farm: OFF")
-local BoostButton = CreateButton("BoostBtn", 0.52, "FPS Boost: OFF")
+local function CreateToggle(name, text, order)
+	local Toggle = Instance.new("TextButton")
+	Toggle.Parent = ScrollingFrame
+	Toggle.Size = UDim2.new(0, 220, 0, 35)
+	Toggle.Position = UDim2.new(0.5, -110, 0, 0) -- Initial position, will be adjusted by layout
+	Toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	Toggle.Text = text
+	Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Toggle.Font = Enum.Font.GothamBold
+	Toggle.TextSize = 14
+	Toggle.LayoutOrder = order
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 6)
+	Corner.Parent = Toggle
+	return Toggle
+end
+
+local function CreateDropdown(name, options, order)
+	local Dropdown = Instance.new("Frame")
+	Dropdown.Parent = ScrollingFrame
+	Dropdown.Size = UDim2.new(0, 220, 0, 35)
+	Dropdown.Position = UDim2.new(0.5, -110, 0, 0)
+	Dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	Dropdown.LayoutOrder = order
+	
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 6)
+	Corner.Parent = Dropdown
+	
+	local Label = Instance.new("TextLabel")
+	Label.Parent = Dropdown
+	Label.Size = UDim2.new(1, -40, 1, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = "Select Fruit: "
+	Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Label.Font = Enum.Font.GothamBold
+	Label.TextSize = 14
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	
+	local OptionButton = Instance.new("TextButton")
+	OptionButton.Parent = Dropdown
+	OptionButton.Size = UDim2.new(0, 35, 1, 0)
+	OptionButton.Position = UDim2.new(1, -35, 0, 0)
+	OptionButton.BackgroundTransparency = 1
+	OptionButton.Text = ">"
+	OptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	OptionButton.Font = Enum.Font.GothamBold
+	OptionButton.TextSize = 14
+	
+	local OptionLabel = Instance.new("TextLabel")
+	OptionLabel.Parent = OptionButton
+	OptionLabel.Size = UDim2.new(1, 0, 1, 0)
+	OptionLabel.BackgroundTransparency = 1
+	OptionLabel.Text = options[1] or "None"
+	OptionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	OptionLabel.Font = Enum.Font.GothamBold
+	OptionLabel.TextSize = 14
+	OptionLabel.ZIndex = 2
+	
+	local ExpandedOptions = Instance.new("ScrollingFrame")
+	ExpandedOptions.Parent = Dropdown
+	ExpandedOptions.Size = UDim2.new(1, 0, 0, 100) -- Height when expanded
+	ExpandedOptions.Position = UDim2.new(0, 0, 1, 5) -- Below the main dropdown
+	ExpandedOptions.BackgroundTransparency = 0
+	ExpandedOptions.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	ExpandedOptions.BorderSizePixel = 0
+	ExpandedOptions.Visible = false
+	ExpandedOptions.ZIndex = 3
+	ExpandedOptions.ScrollBarThickness = 4
+	
+	local ListLayout = Instance.new("UIListLayout")
+	ListLayout.Parent = ExpandedOptions
+	ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ListLayout.Padding = UDim.new(0, 2)
+	
+	for i, option in ipairs(options) do
+		local OptionItem = Instance.new("TextButton")
+		OptionItem.Parent = ExpandedOptions
+		OptionItem.Size = UDim2.new(1, 0, 0, 25)
+		OptionItem.BackgroundTransparency = 0
+		OptionItem.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		OptionItem.Text = option
+		OptionItem.TextColor3 = Color3.fromRGB(255, 255, 255)
+		OptionItem.Font = Enum.Font.Gotham
+		OptionItem.TextSize = 12
+		OptionItem.LayoutOrder = i
+		OptionItem.ZIndex = 4
+		
+		local ItemCorner = Instance.new("UICorner")
+		ItemCorner.CornerRadius = UDim.new(0, 4)
+		ItemCorner.Parent = OptionItem
+		
+		OptionItem.MouseButton1Click:Connect(function()
+			OptionLabel.Text = option
+			Settings.SelectedFruit = option
+			ExpandedOptions.Visible = false
+		end)
+	end
+	
+	local DropdownCorner = Instance.new("UICorner")
+	DropdownCorner.CornerRadius = UDim.new(0, 6)
+	DropdownCorner.Parent = ExpandedOptions
+	
+	OptionButton.MouseButton1Click:Connect(function()
+		ExpandedOptions.Visible = not ExpandedOptions.Visible
+	end)
+	
+	return OptionLabel, OptionButton
+end
+
+
+-- Main Feature Buttons
+local FarmButton = CreateButton("FarmBtn", "Mob Farm: OFF", 1)
+local ChestButton = CreateButton("ChestBtn", "Chest Farm: OFF", 2)
+local BoostButton = CreateButton("BoostBtn", "FPS Boost: OFF", 3)
+local QuestButton = CreateToggle("QuestBtn", "Auto Quest: OFF", 4) -- NEW: Auto Quest Button
+local ObsFarmButton = CreateToggle("ObsFarmBtn", "Observation Farm: OFF", 5) -- NEW: Observation Farm Button
+local ESPButton = CreateToggle("ESPBtn", "ESP: OFF", 6) -- NEW: ESP Toggle Button
+
+-- NEW: Devil Fruit Section
+local FruitLabel = Instance.new("TextLabel")
+FruitLabel.Parent = ScrollingFrame
+FruitLabel.Size = UDim2.new(1, 0, 0, 20)
+FruitLabel.BackgroundTransparency = 1
+FruitLabel.Text = "Devil Fruit:"
+FruitLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+FruitLabel.Font = Enum.Font.GothamBold
+FruitLabel.TextSize = 16
+FruitLabel.TextXAlignment = Enum.TextXAlignment.Left
+FruitLabel.LayoutOrder = 7
+
+local FruitDropdownLabel, FruitDropdownButton = CreateDropdown("FruitDropdown", {"None", "Ice-Ice", "Fire-Fire", "Quake-Quake", "Light-Light", "Dark-Dark"}, 8) -- Example Fruits
+
+local EquipFruitButton = CreateButton("EquipFruitBtn", "Equip Selected Fruit", 9) -- NEW: Equip Fruit Button
+
+-- NEW: Stats Section
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Parent = ScrollingFrame
+StatsLabel.Size = UDim2.new(1, 0, 0, 20)
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Text = "Stats:"
+StatsLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+StatsLabel.Font = Enum.Font.GothamBold
+StatsLabel.TextSize = 16
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatsLabel.LayoutOrder = 10
+
+local BuyMeleeButton = CreateButton("BuyMeleeBtn", "Buy Melee", 11) -- NEW: Buy Melee Button
+local BuyDefenseButton = CreateButton("BuyDefenseBtn", "Buy Defense", 12) -- NEW: Buy Defense Button
+local BuySwordButton = CreateButton("BuySwordBtn", "Buy Sword", 13) -- NEW: Buy Sword Button
+
+-- NEW: ESP Sub-Toggles Section
+local ESPSubLabel = Instance.new("TextLabel")
+ESPSubLabel.Parent = ScrollingFrame
+ESPSubLabel.Size = UDim2.new(1, 0, 0, 20)
+ESPSubLabel.BackgroundTransparency = 1
+ESPSubLabel.Text = "ESP Toggles:"
+ESPSubLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+ESPSubLabel.Font = Enum.Font.GothamBold
+ESPSubLabel.TextSize = 16
+ESPSubLabel.TextXAlignment = Enum.TextXAlignment.Left
+ESPSubLabel.LayoutOrder = 14
+
+local ESPFruitsToggle = CreateToggle("ESPFruitsBtn", "ESP Fruits: OFF", 15) -- NEW: ESP Fruits Toggle
+local ESPChestsToggle = CreateToggle("ESPChestsBtn", "ESP Chests: OFF", 16) -- NEW: ESP Chests Toggle
+local ESPEnemiesToggle = CreateToggle("ESPEnemiesBtn", "ESP Enemies: OFF", 17) -- NEW: ESP Enemies Toggle
+local ESPPlayersToggle = CreateToggle("ESPPlayersBtn", "ESP Players: OFF", 18) -- NEW: ESP Players Toggle
+local ESPNPCsToggle = CreateToggle("ESPNPCsBtn", "ESP NPCs: OFF", 19) -- NEW: ESP NPCs Toggle
+
+-- NEW: Teleport Section
+local TPLabel = Instance.new("TextLabel")
+TPLabel.Parent = ScrollingFrame
+TPLabel.Size = UDim2.new(1, 0, 0, 20)
+TPLabel.BackgroundTransparency = 1
+TPLabel.Text = "Teleports:"
+TPLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+TPLabel.Font = Enum.Font.GothamBold
+TPLabel.TextSize = 16
+TPLabel.TextXAlignment = Enum.TextXAlignment.Left
+TPLabel.LayoutOrder = 20
+
+local TPSea1Button = CreateButton("TPSea1Btn", "Teleport to Sea 1", 21) -- NEW: TP Sea 1 Button
+local TPSea2Button = CreateButton("TPSea2Btn", "Teleport to Sea 2", 22) -- NEW: TP Sea 2 Button
+local TPSea3Button = CreateButton("TPSea3Btn", "Teleport to Sea 3", 23) -- NEW: TP Sea 3 Button
+local TPShipButton = CreateButton("TPShipBtn", "Teleport to Ship", 24) -- NEW: TP Ship Button
 
 -- Timer Label
 local TimerLabel = Instance.new("TextLabel")
@@ -198,6 +408,13 @@ local function ToggleUI(state)
 	end
 end
 
+-- NEW: Teleport Function using Tween
+local function Tween(toLocation)
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+    local tween = TweenService:Create(LocalPlayer.Character.HumanoidRootPart, tweenInfo, {CFrame = toLocation})
+    tween:Play()
+end
+
 -- Keybind Listener
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if input.KeyCode == Enum.KeyCode.RightControl then -- CHANGE KEY HERE
@@ -214,7 +431,7 @@ local function SetupCharacter(char)
 	local hum = char:WaitForChild("Humanoid", 5)
 	local hrp = char:WaitForChild("HumanoidRootPart", 5)
 	
-	if Settings.AutoFarm or Settings.ChestFarm then
+	if Settings.AutoFarm or Settings.ChestFarm or Settings.ObservationFarm then -- Updated condition
 		-- Re-enable flight if it was on
 		local BV = Instance.new("BodyVelocity")
 		BV.Name = "FlyVelocity"
@@ -226,7 +443,7 @@ local function SetupCharacter(char)
 	-- NoClip Loop for this character
 	task.spawn(function()
 		while char and char.Parent do
-			if Settings.AutoFarm or Settings.ChestFarm then
+			if Settings.AutoFarm or Settings.ChestFarm or Settings.ObservationFarm then -- Updated condition
 				for _, part in pairs(char:GetDescendants()) do
 					if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
 				end
@@ -286,10 +503,119 @@ function GetNearestChest()
 	return Target
 end
 
+-- NEW: Get Nearest Observation Farm Enemy (Example: Bandit for early game)
+function GetNearestObsFarmEnemy()
+	local ClosestDist = 1000
+	local Target = nil
+	local Folder = workspace:FindFirstChild("Enemies") or workspace
+	
+	for _, v in pairs(Folder:GetChildren()) do
+		if (v.Name:find("Bandit") or v.Name:find("Monkey") or v.Name:find("Poison Parka")) -- Example targets, adjust as needed
+		   and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+			local MyPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if MyPos then
+				local Dist = (MyPos.Position - v.HumanoidRootPart.Position).Magnitude
+				if Dist < ClosestDist then
+					ClosestDist = Dist
+					Target = v
+				end
+			end
+		end
+	end
+	return Target
+end
+
 function Attack()
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
 	task.wait(0.1)
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+end
+
+-- NEW: ESP Functions
+local ESPLoop = {}
+local ESPFolder = Instance.new("Folder", Camera)
+ESPFolder.Name = "NexaESP"
+
+local function CreateTag(part, name, color)
+	if part:FindFirstChild("NexaESPNameTag") then part.NexaESPNameTag:Destroy() end
+	local BillboardGui = Instance.new("BillboardGui")
+	BillboardGui.Name = "NexaESPNameTag"
+	BillboardGui.AlwaysOnTop = true
+	BillboardGui.Size = UDim2.new(0, 200, 0, 50)
+	BillboardGui.Adornee = part
+	BillboardGui.Parent = part
+
+	local TextLabel = Instance.new("TextLabel")
+	TextLabel.Size = UDim2.new(1, 0, 1, 0)
+	TextLabel.BackgroundTransparency = 1
+	TextLabel.Text = name
+	TextLabel.TextScaled = true
+	TextLabel.Font = Enum.Font.Arial
+	TextLabel.TextColor3 = color
+	TextLabel.Parent = BillboardGui
+end
+
+local function DestroyTag(part)
+	if part:FindFirstChild("NexaESPNameTag") then
+		part.NexaESPNameTag:Destroy()
+	end
+end
+
+local function UpdateESP()
+	if Settings.ESPFruits then
+		for _, part in pairs(workspace:GetChildren()) do
+			if part.Name:lower():find("fruit") and part:IsA("Model") and part:FindFirstChild("Hitbox") then
+				CreateTag(part.Hitbox, part.Name, Color3.fromRGB(255, 255, 0))
+			end
+		end
+	end
+	
+	if Settings.ESPChests then
+		for _, part in pairs(workspace:GetDescendants()) do
+			if (part.Name:find("Chest") or part.Name:find("Crate")) and (part:IsA("Part") or part:IsA("Model")) then
+				local pos = part:IsA("Model") and part.PrimaryPart.Position or part.Position
+				CreateTag(part, part.Name, Color3.fromRGB(0, 255, 0))
+			end
+		end
+	end
+
+	if Settings.ESPEnemies then
+		for _, v in pairs(workspace:GetChildren()) do
+			if v.Name == "Enemies" then
+				for _, enemy in pairs(v:GetChildren()) do
+					if enemy:FindFirstChild("HumanoidRootPart") then
+						CreateTag(enemy.HumanoidRootPart, enemy.Name, Color3.fromRGB(255, 0, 0))
+					end
+				end
+			end
+		end
+	end
+
+	if Settings.ESPPlayers then
+		for _, player in pairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				CreateTag(player.Character.HumanoidRootPart, player.Name, Color3.fromRGB(0, 150, 255))
+			end
+		end
+	end
+
+	if Settings.ESPNPCs then
+		for _, v in pairs(workspace:GetChildren()) do
+			if v.Name == "NPCs" then
+				for _, npc in pairs(v:GetChildren()) do
+					if npc:FindFirstChild("HumanoidRootPart") then
+						CreateTag(npc.HumanoidRootPart, npc.Name, Color3.fromRGB(255, 150, 0))
+					end
+				end
+			end
+		end
+	end
+end
+
+local function ClearESP()
+	for _, part in pairs(workspace:GetDescendants()) do
+		DestroyTag(part)
+	end
 end
 
 -- 6. MAIN LOOPS
@@ -305,8 +631,69 @@ RunService.RenderStepped:Connect(function()
 	if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
 	local HRP = Char.HumanoidRootPart
 	
+	-- [[ AUTO QUEST ]]
+	if Settings.AutoQuest then
+		local MyLevel = LocalPlayer.Data.Level.Value
+		-- Simple example for Sea 1 quests, expand logic as needed
+		if MyLevel >= 1 and MyLevel <= 9 then -- Bandit Quest
+			if not LocalPlayer.PlayerGui.Main.Quest.Visible or LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.TitleLabel.Text ~= "Bandit [Lv. 5]" then
+				Tween(CFrame.new(1060.9383544922, 16.455066680908, 1547.7841796875)) -- Quest NPC Position
+				wait(1)
+				CommF:InvokeServer("StartQuest", "BanditQuest1", 1)
+			elseif LocalPlayer.PlayerGui.Main.Quest.Visible and LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.TitleLabel.Text == "Bandit [Lv. 5]" then
+				local Mob = GetNearestEnemy()
+				if Mob then
+					StatusLabel.Text = "AutoQuest: Attacking "..Mob.Name
+					Tween(Mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+					Attack()
+				else
+					StatusLabel.Text = "AutoQuest: Finding Bandit..."
+				end
+			end
+		elseif MyLevel >= 10 and MyLevel <= 14 then -- Monkey Quest
+			if not LocalPlayer.PlayerGui.Main.Quest.Visible or LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.TitleLabel.Text ~= "Monkey [Lv. 14]" then
+				Tween(CFrame.new(-1601.6553955078, 36.85213470459, -102.27299499512)) -- Quest NPC Position
+				wait(1)
+				CommF:InvokeServer("StartQuest", "JungleQuest", 1)
+			elseif LocalPlayer.PlayerGui.Main.Quest.Visible and LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.TitleLabel.Text == "Monkey [Lv. 14]" then
+				local Mob = GetNearestEnemy()
+				if Mob then
+					StatusLabel.Text = "AutoQuest: Attacking "..Mob.Name
+					Tween(Mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+					Attack()
+				else
+					StatusLabel.Text = "AutoQuest: Finding Monkey..."
+				end
+			end
+		-- Add more quest levels here following the same pattern...
+		else
+			StatusLabel.Text = "AutoQuest: Reached High Level, Check Quest."
+		end
+	end
+
+	-- [[ OBSERVATION HAKI FARM ]]
+	if Settings.ObservationFarm then
+		local Tool = Char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+		if Tool and Tool.Parent == LocalPlayer.Backpack then Tool.Parent = Char end
+
+		local Enemy = GetNearestObsFarmEnemy() -- Use the new function
+		if Enemy then
+			StatusLabel.Text = "Obs Farm: Attacking: " .. Enemy.Name
+			local EnemyPos = Enemy.HumanoidRootPart.Position
+			-- Look at enemy
+			local LookCFrame = CFrame.new(EnemyPos + Vector3.new(0, Settings.FarmDistance, 0), EnemyPos)
+			
+			HRP.CFrame = HRP.CFrame:Lerp(LookCFrame, Settings.Smoothness)
+			HRP.Velocity = Vector3.new(0,0,0) -- Freeze physics
+			
+			Attack()
+		else
+			StatusLabel.Text = "Obs Farm: Searching for Targets..."
+		end
+	end
+
 	-- [[ AUTO FARM ]]
-	if Settings.AutoFarm then
+	if Settings.AutoFarm and not Settings.ObservationFarm then -- Ensure it doesn't run alongside Obs Farm
 		local Tool = Char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
 		if Tool and Tool.Parent == LocalPlayer.Backpack then Tool.Parent = Char end
 
@@ -354,6 +741,13 @@ RunService.RenderStepped:Connect(function()
 			StatusLabel.Text = "Status: No Chests Found"
 		end
 	end
+
+	-- NEW: ESP Update Loop
+	if Settings.ESPEnabled then
+		UpdateESP()
+	else
+		ClearESP()
+	end
 end)
 
 -- 7. BUTTON LOGIC
@@ -377,9 +771,12 @@ end
 FarmButton.MouseButton1Click:Connect(function()
 	Settings.AutoFarm = not Settings.AutoFarm
 	Settings.ChestFarm = false -- Disable other mode
+	Settings.ObservationFarm = false -- Disable other mode
 	
 	ChestButton.Text = "Chest Farm: OFF"
 	ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	ObsFarmButton.Text = "Observation Farm: OFF"
+	ObsFarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	
 	if Settings.AutoFarm then
 		FarmButton.Text = "Mob Farm: ON"
@@ -395,9 +792,12 @@ end)
 ChestButton.MouseButton1Click:Connect(function()
 	Settings.ChestFarm = not Settings.ChestFarm
 	Settings.AutoFarm = false -- Disable other mode
+	Settings.ObservationFarm = false -- Disable other mode
 	
 	FarmButton.Text = "Mob Farm: OFF"
 	FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	ObsFarmButton.Text = "Observation Farm: OFF"
+	ObsFarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	
 	if Settings.ChestFarm then
 		ChestButton.Text = "Chest Farm: ON"
@@ -425,5 +825,155 @@ BoostButton.MouseButton1Click:Connect(function()
 		BoostButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		pcall(function() setfpscap(999) end)
 		Lighting.GlobalShadows = true
+	end
+end)
+
+-- NEW: Auto Quest Toggle Logic
+QuestButton.MouseButton1Click:Connect(function()
+	Settings.AutoQuest = not Settings.AutoQuest
+	if Settings.AutoQuest then
+		QuestButton.Text = "Auto Quest: ON"
+		QuestButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+		-- Turn off conflicting farms
+		Settings.AutoFarm = false
+		Settings.ChestFarm = false
+		Settings.ObservationFarm = false
+		FarmButton.Text = "Mob Farm: OFF"
+		FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		ChestButton.Text = "Chest Farm: OFF"
+		ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		ObsFarmButton.Text = "Observation Farm: OFF"
+		ObsFarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	else
+		QuestButton.Text = "Auto Quest: OFF"
+		QuestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	end
+end)
+
+-- NEW: Observation Farm Toggle Logic
+ObsFarmButton.MouseButton1Click:Connect(function()
+	Settings.ObservationFarm = not Settings.ObservationFarm
+	Settings.AutoFarm = false -- Disable other mode
+	Settings.ChestFarm = false -- Disable other mode
+	Settings.AutoQuest = false -- Disable other mode
+	
+	QuestButton.Text = "Auto Quest: OFF"
+	QuestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	FarmButton.Text = "Mob Farm: OFF"
+	FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	ChestButton.Text = "Chest Farm: OFF"
+	ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	
+	if Settings.ObservationFarm then
+		ObsFarmButton.Text = "Observation Farm: ON"
+		ObsFarmButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+		ToggleFlight(true)
+	else
+		ObsFarmButton.Text = "Observation Farm: OFF"
+		ObsFarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		ToggleFlight(false)
+	end
+end)
+
+-- NEW: ESP Toggle Logic
+ESPButton.MouseButton1Click:Connect(function()
+	Settings.ESPEnabled = not Settings.ESPEnabled
+	if Settings.ESPEnabled then
+		ESPButton.Text = "ESP: ON"
+		ESPButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+	else
+		ESPButton.Text = "ESP: OFF"
+		ESPButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		ClearESP() -- Clear ESP when turned off
+	end
+end)
+
+-- NEW: ESP Sub-Toggle Logics
+ESPFruitsToggle.MouseButton1Click:Connect(function()
+	Settings.ESPFruits = not Settings.ESPFruits
+	ESPFruitsToggle.Text = "ESP Fruits: "..(Settings.ESPFruits and "ON" or "OFF")
+	ESPFruitsToggle.BackgroundColor3 = Settings.ESPFruits and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(50, 50, 50)
+end)
+
+ESPChestsToggle.MouseButton1Click:Connect(function()
+	Settings.ESPChests = not Settings.ESPChests
+	ESPChestsToggle.Text = "ESP Chests: "..(Settings.ESPChests and "ON" or "OFF")
+	ESPChestsToggle.BackgroundColor3 = Settings.ESPChests and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(50, 50, 50)
+end)
+
+ESPEnemiesToggle.MouseButton1Click:Connect(function()
+	Settings.ESPEnemies = not Settings.ESPEnemies
+	ESPEnemiesToggle.Text = "ESP Enemies: "..(Settings.ESPEnemies and "ON" or "OFF")
+	ESPEnemiesToggle.BackgroundColor3 = Settings.ESPEnemies and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(50, 50, 50)
+end)
+
+ESPPlayersToggle.MouseButton1Click:Connect(function()
+	Settings.ESPPlayers = not Settings.ESPPlayers
+	ESPPlayersToggle.Text = "ESP Players: "..(Settings.ESPPlayers and "ON" or "OFF")
+	ESPPlayersToggle.BackgroundColor3 = Settings.ESPPlayers and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(50, 50, 50)
+end)
+
+ESPNPCsToggle.MouseButton1Click:Connect(function()
+	Settings.ESPNPCs = not Settings.ESPNPCs
+	ESPNPCsToggle.Text = "ESP NPCs: "..(Settings.ESPNPCs and "ON" or "OFF")
+	ESPNPCsToggle.BackgroundColor3 = Settings.ESPNPCs and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(50, 50, 50)
+end)
+
+-- NEW: Devil Fruit Equip Button Logic
+EquipFruitButton.MouseButton1Click:Connect(function()
+	if Settings.SelectedFruit and Settings.SelectedFruit ~= "None" then
+		CommF:InvokeServer("SelectFruit", Settings.SelectedFruit)
+		print("Attempted to select fruit: " .. Settings.SelectedFruit)
+	else
+		print("Please select a fruit first.")
+	end
+end)
+
+-- NEW: Stats Buy Button Logics
+BuyMeleeButton.MouseButton1Click:Connect(function()
+	CommF:InvokeServer("BuyMelee")
+	print("Attempted to buy Melee stat.")
+end)
+
+BuyDefenseButton.MouseButton1Click:Connect(function()
+	CommF:InvokeServer("BuyDefense")
+	print("Attempted to buy Defense stat.")
+end)
+
+BuySwordButton.MouseButton1Click:Connect(function()
+	CommF:InvokeServer("BuySword")
+	print("Attempted to buy Sword stat.")
+end)
+
+-- NEW: Teleport Button Logics
+TPSea1Button.MouseButton1Click:Connect(function()
+	Tween(CFrame.new(0, 100, 0)) -- Generic Sea 1 position, replace with accurate one if needed
+	StatusLabel.Text = "Teleported to Sea 1"
+end)
+
+TPSea2Button.MouseButton1Click:Connect(function()
+	Tween(CFrame.new(-4907.72217, 322.182953, -2849.0127)) -- Sea 2 position
+	StatusLabel.Text = "Teleported to Sea 2"
+end)
+
+TPSea3Button.MouseButton1Click:Connect(function()
+	Tween(CFrame.new(9353.12207, 23.2348824, 9013.39258)) -- Sea 3 position
+	StatusLabel.Text = "Teleported to Sea 3"
+end)
+
+TPShipButton.MouseButton1Click:Connect(function()
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local ShipParts = workspace:FindFirstChild("Ships")
+		if ShipParts then
+			for _, part in pairs(ShipParts:GetChildren()) do
+				if part:IsA("Model") and part:FindFirstChild("ShipPart") then -- Common ship model structure
+					Tween(part.ShipPart.CFrame * CFrame.new(0, 10, 0)) -- Teleport near the ship
+					StatusLabel.Text = "Teleported to Ship"
+					break
+				end
+			end
+		else
+			print("Ships folder not found.")
+		end
 	end
 end)
