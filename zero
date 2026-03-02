@@ -1,4 +1,4 @@
--- [[ NEXA HUB v4 - SECURITY & SERVER HOP ]] --
+-- [[ NEXA HUB v5 - TASKBAR UI EDITION ]] --
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -11,7 +11,7 @@ local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -21,8 +21,7 @@ local Settings = {
 	FPSBoost = false,
 	FarmDistance = 14,
 	Smoothness = 0.2,
-	ServerHopDelay = 1800, -- 30 Minutes in seconds
-	TimeElapsed = 0
+	ServerHopDelay = 1800
 }
 
 -- 4. GUI CREATION
@@ -30,28 +29,120 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = game.CoreGui
 
+-- ===========================
+--    MINIMIZED BAR (The Taskbar)
+-- ===========================
+local MiniFrame = Instance.new("Frame")
+MiniFrame.Name = "MiniFrame"
+MiniFrame.Parent = ScreenGui
+MiniFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MiniFrame.Size = UDim2.new(0, 300, 0, 50) -- Dimensions of the bar
+MiniFrame.Position = UDim2.new(0.5, -150, 0.92, 0) -- Bottom Center
+MiniFrame.BorderSizePixel = 0
+MiniFrame.Visible = true -- Starts Visible
+MiniFrame.Active = true
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 8)
+MiniCorner.Parent = MiniFrame
+
+local MiniStroke = Instance.new("UIStroke")
+MiniStroke.Parent = MiniFrame
+MiniStroke.Color = Color3.fromRGB(60, 60, 60)
+MiniStroke.Thickness = 1
+
+-- User Icon (Left Side)
+local UserIcon = Instance.new("ImageLabel")
+UserIcon.Parent = MiniFrame
+UserIcon.Size = UDim2.new(0, 34, 0, 34)
+UserIcon.Position = UDim2.new(0, 8, 0.5, -17)
+UserIcon.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+UserIcon.BackgroundTransparency = 1
+-- Get Player Headshot
+local content, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+UserIcon.Image = content
+local IconCorner = Instance.new("UICorner")
+IconCorner.CornerRadius = UDim.new(1, 0) -- Circle
+IconCorner.Parent = UserIcon
+
+-- Title Text
+local MiniTitle = Instance.new("TextLabel")
+MiniTitle.Parent = MiniFrame
+MiniTitle.Text = "Nexa Hub [Premium]"
+MiniTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+MiniTitle.TextSize = 14
+MiniTitle.Font = Enum.Font.GothamBold
+MiniTitle.Size = UDim2.new(0, 200, 0, 20)
+MiniTitle.Position = UDim2.new(0, 50, 0.2, 0)
+MiniTitle.TextXAlignment = Enum.TextXAlignment.Left
+MiniTitle.BackgroundTransparency = 1
+
+-- Subtitle Text
+local MiniSub = Instance.new("TextLabel")
+MiniSub.Parent = MiniFrame
+MiniSub.Text = "by NexusZeroDev"
+MiniSub.TextColor3 = Color3.fromRGB(150, 150, 150)
+MiniSub.TextSize = 11
+MiniSub.Font = Enum.Font.Gotham
+MiniSub.Size = UDim2.new(0, 200, 0, 20)
+MiniSub.Position = UDim2.new(0, 50, 0.5, 0)
+MiniSub.TextXAlignment = Enum.TextXAlignment.Left
+MiniSub.BackgroundTransparency = 1
+
+-- Maximize Button (Square Icon)
+local MaximizeBtn = Instance.new("TextButton")
+MaximizeBtn.Parent = MiniFrame
+MaximizeBtn.Size = UDim2.new(0, 50, 1, 0)
+MaximizeBtn.Position = UDim2.new(1, -50, 0, 0)
+MaximizeBtn.BackgroundTransparency = 1
+MaximizeBtn.Text = "⛶" -- Square symbol
+MaximizeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+MaximizeBtn.TextSize = 24
+MaximizeBtn.Font = Enum.Font.Gotham
+
+-- ===========================
+--    MAIN FRAME (The Menu)
+-- ===========================
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 260, 0, 220) -- Made taller for Timer
-MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 260, 0, 220)
+MainFrame.Position = UDim2.new(0.5, -130, 0.4, 0) -- Center Screen
 MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false -- Starts Hidden
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- Minimize Button (-)
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Parent = MainFrame
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -35, 0, 5)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 18
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinimizeBtn
 
 -- Title
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "NEXA HUB | Security"
+Title.Text = "NEXA HUB"
 Title.TextColor3 = Color3.fromRGB(255, 150, 0)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 20
 Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
 -- Button 1: Auto Farm
@@ -106,25 +197,43 @@ StatusLabel.Size = UDim2.new(1, 0, 0, 20)
 StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
 StatusLabel.BackgroundTransparency = 1
 
--- 5. FUNCTIONALITY --
+-- 5. UI ANIMATION LOGIC
+local function ToggleUI(state)
+	if state == "Open" then
+		MiniFrame.Visible = false
+		MainFrame.Visible = true
+		
+		-- Pop-in Effect
+		MainFrame.Size = UDim2.new(0, 240, 0, 200)
+		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0, 260, 0, 220)})
+		tween:Play()
+	else
+		MainFrame.Visible = false
+		MiniFrame.Visible = true
+	end
+end
 
--- Helper: Server Hop
-function ServerHop()
+MaximizeBtn.MouseButton1Click:Connect(function()
+	ToggleUI("Open")
+end)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+	ToggleUI("Close")
+end)
+
+
+-- 6. FUNCTIONALITY & LOGIC
+local function ServerHop()
 	StatusLabel.Text = "Status: Hopping Server..."
-	
-	-- Queue the script to run again after teleport (if supported)
 	if queue_on_teleport then
 		queue_on_teleport('loadstring(game:HttpGet("https://raw.githubusercontent.com/NexusZeroDev/Nexus/main/zero?v="..tostring(tick())))()')
 	end
-
-	-- Find a new server
+	
 	local PlaceID = game.PlaceId
 	local AllIDs = {}
 	local foundAnything = ""
 	local actualHour = os.date("!*t").hour
-	local Deleted = false
 	
-	-- API Request to get server list
 	local function TPReturner()
 		local Site;
 		if foundAnything == "" then
@@ -138,32 +247,17 @@ function ServerHop()
 			foundAnything = Site.nextPageCursor
 		end
 		
-		local num = 0;
 		for i,v in pairs(Site.data) do
 			local Possible = true
 			ID = tostring(v.id)
 			if tonumber(v.maxPlayers) > tonumber(v.playing) then
 				for _,Existing in pairs(AllIDs) do
-					if num ~= 0 then
-						if ID == tostring(Existing) then
-							Possible = false
-						end
-					else
-						if tonumber(actualHour) ~= tonumber(Existing) then
-							local delFile = pcall(function()
-								delfile("NotSameServers.json")
-								AllIDs = {}
-								table.insert(AllIDs, actualHour)
-							end)
-						end
-					end
-					num = num + 1
+					if ID == tostring(Existing) then Possible = false end
 				end
 				if Possible == true then
 					table.insert(AllIDs, ID)
 					wait()
 					pcall(function()
-						-- Teleport
 						TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
 					end)
 					wait(4)
@@ -171,23 +265,16 @@ function ServerHop()
 			end
 		end
 	end
-	
-	-- Try to hop
 	TPReturner() 
-	-- If that fails, standard teleport
-	TeleportService:Teleport(PlaceID, LocalPlayer)
 end
 
--- Helper: Find Enemy
 function GetNearestEnemy()
 	local ClosestDist = 2000
 	local Target = nil
 	local PotentialTargets = {}
-	
 	if workspace:FindFirstChild("Enemies") then
 		for _, v in pairs(workspace.Enemies:GetChildren()) do table.insert(PotentialTargets, v) end
 	end
-	
 	for _, v in pairs(PotentialTargets) do
 		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
 			local Dist = (LocalPlayer.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
@@ -200,43 +287,39 @@ function GetNearestEnemy()
 	return Target
 end
 
--- Helper: Attack
 function Attack()
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
 	task.wait(0.05)
 	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
--- Helper: Time Formatter
 function FormatTime(seconds)
 	local minutes = math.floor(seconds / 60)
 	local secs = seconds % 60
 	return string.format("%02d:%02d", minutes, secs)
 end
 
--- LOOP: Main Logic
 local StartTime = tick()
 
 RunService.RenderStepped:Connect(function()
-	-- 1. Handle Timer
+	-- Timer
 	local Elapsed = tick() - StartTime
 	local TimeLeft = math.ceil(Settings.ServerHopDelay - Elapsed)
 	
 	if TimeLeft <= 0 then
 		TimerLabel.Text = "HOPPING NOW..."
 		ServerHop()
-		StartTime = tick() + 100 -- Prevent spamming call
+		StartTime = tick() + 100
 	else
 		TimerLabel.Text = "Server Hop in: " .. FormatTime(TimeLeft)
 	end
 	
-	-- 2. Auto Farm Logic
+	-- Auto Farm
 	if Settings.AutoFarm then
 		local Character = LocalPlayer.Character
 		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
 		local HRP = Character.HumanoidRootPart
 		
-		-- Equip Weapon
 		local Tool = Character:FindFirstChildOfClass("Tool")
 		if not Tool then
 			for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
@@ -266,13 +349,11 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- BUTTON EVENTS
 FarmButton.MouseButton1Click:Connect(function()
 	Settings.AutoFarm = not Settings.AutoFarm
 	if Settings.AutoFarm then
 		FarmButton.Text = "Auto Farm: ON"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-		
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") then
 			local BV = Instance.new("BodyVelocity")
@@ -285,7 +366,6 @@ FarmButton.MouseButton1Click:Connect(function()
 		FarmButton.Text = "Auto Farm: OFF"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		StatusLabel.Text = "Status: Idle"
-		
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart:FindFirstChild("FlyVelocity") then
 			Character.HumanoidRootPart.FlyVelocity:Destroy()
