@@ -1,5 +1,5 @@
--- [[ NEXA HUB v6 - CHEST FARM EDITION ]] --
-print("LOADING NEXA HUB v6...")
+-- [[ NEXA HUB v7 - JUMP & SWITCH EDITION ]] --
+print("LOADING NEXA HUB v7...")
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -22,8 +22,10 @@ local Settings = {
 	ChestFarm = false,
 	FPSBoost = false,
 	FarmDistance = 14,
-	Smoothness = 0.2, -- Lower is smoother/slower (Safer)
-	ServerHopDelay = 1800
+	Smoothness = 0.2, 
+	ServerHopDelay = 1800,
+	IsCollecting = false, -- Debounce for the jump
+	IgnoredChests = {} -- Blacklist to prevent getting stuck on same chest
 }
 
 -- 4. GUI CREATION
@@ -39,7 +41,7 @@ MiniFrame.Name = "MiniFrame"
 MiniFrame.Parent = ScreenGui
 MiniFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MiniFrame.Size = UDim2.new(0, 300, 0, 50) 
-MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) -- Top Center
+MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) 
 MiniFrame.BorderSizePixel = 0
 MiniFrame.Visible = true 
 MiniFrame.Active = true
@@ -98,13 +100,13 @@ MaximizeBtn.TextSize = 24
 MaximizeBtn.Font = Enum.Font.Gotham
 
 -- ===========================
---    MAIN FRAME (The Menu)
+--    MAIN FRAME
 -- ===========================
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 260, 0, 280) -- Made Taller for new button
+MainFrame.Size = UDim2.new(0, 260, 0, 280) 
 MainFrame.Position = UDim2.new(0.5, -130, 0.4, 0) 
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false 
@@ -140,7 +142,7 @@ Title.Position = UDim2.new(0, 10, 0, 0)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
--- Button 1: Auto Farm (Mob)
+-- Button 1: Auto Farm
 local FarmButton = Instance.new("TextButton")
 FarmButton.Parent = MainFrame
 FarmButton.Size = UDim2.new(0, 220, 0, 35)
@@ -155,7 +157,7 @@ local FarmCorner = Instance.new("UICorner")
 FarmCorner.CornerRadius = UDim.new(0, 6)
 FarmCorner.Parent = FarmButton
 
--- Button 2: Chest Farm (NEW)
+-- Button 2: Chest Farm
 local ChestButton = Instance.new("TextButton")
 ChestButton.Parent = MainFrame
 ChestButton.Size = UDim2.new(0, 220, 0, 35)
@@ -224,7 +226,7 @@ end
 MaximizeBtn.MouseButton1Click:Connect(function() ToggleUI("Open") end)
 MinimizeBtn.MouseButton1Click:Connect(function() ToggleUI("Close") end)
 
--- NOCLIP (Required for Chest Farm)
+-- NOCLIP
 RunService.Stepped:Connect(function()
 	if Settings.ChestFarm or Settings.AutoFarm then
 		if LocalPlayer.Character then
@@ -302,13 +304,14 @@ function GetNearestEnemy()
 end
 
 function GetNearestChest()
-	local ClosestDist = 5000
+	local ClosestDist = 99999
 	local Target = nil
 	
 	for _, v in pairs(workspace:GetDescendants()) do
-		-- Blox fruits chests usually named Chest1, Chest2, Chest3
 		if string.find(v.Name, "Chest") and (v:IsA("Part") or v:IsA("Model")) then
-			if v:IsA("Model") and not v.PrimaryPart then continue end -- Skip broken chests
+			-- CHECK IGNORED LIST
+			if table.find(Settings.IgnoredChests, v) then continue end
+			if v:IsA("Model") and not v.PrimaryPart then continue end
 			
 			local Pos = v:IsA("Model") and v.PrimaryPart.Position or v.Position
 			local Dist = (LocalPlayer.Character.HumanoidRootPart.Position - Pos).Magnitude
@@ -379,8 +382,8 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 	
-	-- [[ CHEST FARM LOGIC ]]
-	if Settings.ChestFarm then
+	-- [[ CHEST FARM LOGIC (UPDATED) ]]
+	if Settings.ChestFarm and not Settings.IsCollecting then
 		local Character = LocalPlayer.Character
 		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
 		local HRP = Character.HumanoidRootPart
@@ -390,25 +393,48 @@ RunService.RenderStepped:Connect(function()
 			StatusLabel.Text = "Chest: " .. Chest.Name
 			local ChestPos = Chest:IsA("Model") and Chest.PrimaryPart.Position or Chest.Position
 			
-			-- Tween directly into the chest to collect it
-			local TargetCFrame = CFrame.new(ChestPos)
+			local Dist = (HRP.Position - ChestPos).Magnitude
 			
-			if (HRP.Position - TargetCFrame.Position).Magnitude > 300 then
-				HRP.CFrame = TargetCFrame
+			-- IF WE REACHED THE CHEST
+			if Dist < 5 then
+				Settings.IsCollecting = true -- Pause Tweening
+				
+				-- 1. Ignore this chest so we don't come back instantly
+				table.insert(Settings.IgnoredChests, Chest)
+				
+				-- 2. Jump!
+				Character.Humanoid.Jump = true
+				
+				-- 3. Wait a moment, then search for NEXT chest
+				task.spawn(function()
+					task.wait(0.5) -- Time to register collection
+					Settings.IsCollecting = false
+					
+					-- Optional: Clear from ignore list after 10 seconds just in case
+					task.wait(10)
+					for i,v in pairs(Settings.IgnoredChests) do
+						if v == Chest then table.remove(Settings.IgnoredChests, i) end
+					end
+				end)
 			else
-				HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
+				-- TWEEN TO CHEST
+				local TargetCFrame = CFrame.new(ChestPos)
+				if Dist > 300 then
+					HRP.CFrame = TargetCFrame
+				else
+					HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
+				end
+				HRP.Velocity = Vector3.new(0,0,0)
 			end
-			HRP.Velocity = Vector3.new(0,0,0)
 		else
-			StatusLabel.Text = "Status: No Chests Found"
+			StatusLabel.Text = "Status: No Chests (Hopping?)"
 		end
 	end
 end)
 
--- BUTTON EVENTS
 FarmButton.MouseButton1Click:Connect(function()
 	Settings.AutoFarm = not Settings.AutoFarm
-	Settings.ChestFarm = false -- Turn off Chest Farm if we turn on Mob Farm
+	Settings.ChestFarm = false
 	
 	ChestButton.Text = "Chest Farm: OFF"
 	ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -437,7 +463,7 @@ end)
 
 ChestButton.MouseButton1Click:Connect(function()
 	Settings.ChestFarm = not Settings.ChestFarm
-	Settings.AutoFarm = false -- Turn off Mob Farm if we turn on Chest Farm
+	Settings.AutoFarm = false
 	
 	FarmButton.Text = "Mob Farm: OFF"
 	FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -445,8 +471,6 @@ ChestButton.MouseButton1Click:Connect(function()
 	if Settings.ChestFarm then
 		ChestButton.Text = "Chest Farm: ON"
 		ChestButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-		
-		-- Enable Float
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") then
 			local BV = Instance.new("BodyVelocity")
@@ -459,8 +483,6 @@ ChestButton.MouseButton1Click:Connect(function()
 		ChestButton.Text = "Chest Farm: OFF"
 		ChestButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		StatusLabel.Text = "Status: Idle"
-		
-		-- Disable Float
 		local Character = LocalPlayer.Character
 		if Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart:FindFirstChild("FlyVelocity") then
 			Character.HumanoidRootPart.FlyVelocity:Destroy()
