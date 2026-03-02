@@ -1,170 +1,257 @@
--- [[ NEXA HUB v12 - CLOSE RANGE FIX ]] --
-print("LOADING NEXA HUB v12...")
+-- [[ NEXA FRUIT SEEKER - TWEEN & HOP ]] --
+print("LOADING FRUIT SEEKER...")
 
--- 1. CLEANUP
-if game.CoreGui:FindFirstChild("NexaHubUI") then
-	game.CoreGui.NexaHubUI:Destroy()
-end
+-- 1. CONFIGURATION
+local Settings = {
+	TweenSpeed = 300,      -- Speed of flight (Higher = Faster)
+	PickupDistance = 5,    -- How close to get before picking up
+	ServerHopDelay = 5,    -- Seconds to wait before hopping if no fruit
+	StoreFruit = true,     -- Attempt to store fruit (Game dependent, usually disabled to be safe)
+	SafeMode = true        -- Slows down slightly to prevent kicks
+}
 
 -- 2. SERVICES
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
+
 local LocalPlayer = Players.LocalPlayer
 
--- 3. SETTINGS
-local Settings = {
-	AutoFarm = false,
-	Distance = 4, -- 4 Studs is close enough to hit, but just out of touch range
-	Height = 0,   -- 0 = Same level (Behind), 5 = Above
-	Angle = 0     -- Used for rotation
-}
-
--- 4. GUI SETUP
+-- 3. UI SETUP
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NexaHubUI"
+ScreenGui.Name = "FruitSeekerUI"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Size = UDim2.new(0, 220, 0, 160) 
-MainFrame.Position = UDim2.new(0.5, -110, 0.4, 0) 
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 300, 0, 100)
+MainFrame.Position = UDim2.new(0.5, -150, 0.1, 0)
 MainFrame.Active = true
-MainFrame.Draggable = true 
+MainFrame.Draggable = true
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "NEXA HUB v12"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0)
+Title.Text = "FRUIT SEEKER"
+Title.TextColor3 = Color3.fromRGB(255, 100, 255)
 Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 16
+Title.TextSize = 20
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = MainFrame
 StatusLabel.Text = "Status: Idle"
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-StatusLabel.TextSize = 12
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0.85, 0)
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 14
+StatusLabel.Size = UDim2.new(1, 0, 0, 30)
+StatusLabel.Position = UDim2.new(0, 0, 0.4, 0)
 StatusLabel.BackgroundTransparency = 1
 
--- 5. ATTACK FUNCTION
-local function AutoClick()
-	-- Force Tool Swing
-	local Char = LocalPlayer.Character
-	if Char then
-		local Tool = Char:FindFirstChildOfClass("Tool")
-		if Tool then
-			Tool:Activate()
-		else
-			-- If no tool, try standard M1 (Fighting styles)
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-			task.wait(0.05) -- Fast tap
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-		end
+local StopBtn = Instance.new("TextButton")
+StopBtn.Parent = MainFrame
+StopBtn.Size = UDim2.new(0, 100, 0, 25)
+StopBtn.Position = UDim2.new(0.5, -50, 0.7, 0)
+StopBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+StopBtn.Text = "STOP"
+StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopBtn.Font = Enum.Font.GothamBold
+
+-- 4. UTILITY FUNCTIONS
+
+local function Notify(msg)
+	StarterGui:SetCore("SendNotification", {
+		Title = "Fruit Seeker";
+		Text = msg;
+		Duration = 5;
+	})
+end
+
+local function SetStatus(text)
+	StatusLabel.Text = "Status: " .. text
+end
+
+-- NOCLIP LOOP
+local NoClipConnection
+local function EnableNoClip(state)
+	if state then
+		NoClipConnection = RunService.Stepped:Connect(function()
+			if LocalPlayer.Character then
+				for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+					if v:IsA("BasePart") then v.CanCollide = false end
+				end
+			end
+		end)
+	else
+		if NoClipConnection then NoClipConnection:Disconnect() end
 	end
 end
 
--- 6. TOGGLE BUTTON
-local FarmBtn = Instance.new("TextButton")
-FarmBtn.Parent = MainFrame
-FarmBtn.Size = UDim2.new(0, 180, 0, 40)
-FarmBtn.Position = UDim2.new(0.5, -90, 0.3, 0)
-FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-FarmBtn.Text = "Start Farm"
-FarmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FarmBtn.Font = Enum.Font.GothamBold
-FarmBtn.TextSize = 14
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 6)
-Corner.Parent = FarmBtn
-
-FarmBtn.MouseButton1Click:Connect(function()
-	Settings.AutoFarm = not Settings.AutoFarm
-	if Settings.AutoFarm then
-		FarmBtn.Text = "Stop Farm"
-		FarmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-	else
-		FarmBtn.Text = "Start Farm"
-		FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	end
-end)
-
--- 7. TARGET FINDER
-function GetTarget()
-	local ClosestDist = 500
-	local Target = nil
-	local Folder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
+-- 5. FRUIT DETECTION
+function FindFruit()
+	local FoundFruit = nil
 	
-	for _, v in pairs(Folder:GetChildren()) do
-		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-			local Char = LocalPlayer.Character
-			if Char and Char:FindFirstChild("HumanoidRootPart") then
-				local Dist = (Char.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-				if Dist < ClosestDist then
-					ClosestDist = Dist
-					Target = v
+	-- Scan Workspace for common Fruit names
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v:IsA("Tool") or v:IsA("Model") then
+			-- IGNORE: Our Backpack, Our Character, ReplicatedStorage
+			if v.Parent == LocalPlayer.Backpack or v.Parent == LocalPlayer.Character then continue end
+			
+			local Name = string.lower(v.Name)
+			if string.find(Name, "fruit") then
+				-- Check if it has a handle (Physical part to tween to)
+				if v:FindFirstChild("Handle") or v:FindFirstChild("Main") or (v:IsA("BasePart")) then
+					FoundFruit = v
+					break -- Found one!
 				end
 			end
 		end
 	end
-	return Target
+	return FoundFruit
 end
 
--- 8. MAIN LOOPS
-
--- Attack Loop (Runs separately)
-task.spawn(function()
-	while true do
-		if Settings.AutoFarm then
-			pcall(function() AutoClick() end)
+-- 6. TWEEN MOVEMENT
+function TweenTo(targetPart)
+	local Char = LocalPlayer.Character
+	if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
+	local HRP = Char.HumanoidRootPart
+	
+	local Distance = (HRP.Position - targetPart.Position).Magnitude
+	local Time = Distance / Settings.TweenSpeed
+	
+	local TInfo = TweenInfo.new(Time, Enum.EasingStyle.Linear)
+	local Goal = {CFrame = targetPart.CFrame}
+	
+	local Tween = TweenService:Create(HRP, TInfo, Goal)
+	
+	EnableNoClip(true)
+	HRP.Velocity = Vector3.new(0,0,0) -- Freeze physics
+	
+	Tween:Play()
+	
+	-- Wait for tween to finish or fruit to disappear
+	local Waited = 0
+	while Waited < Time do
+		if not targetPart.Parent then 
+			Tween:Cancel()
+			return false -- Fruit despawned/picked up by someone else
 		end
-		task.wait(0.1) -- Click speed
+		-- Stop physics falling
+		HRP.Velocity = Vector3.new(0,0,0)
+		task.wait(0.1)
+		Waited = Waited + 0.1
 	end
+	
+	EnableNoClip(false)
+	return true
+end
+
+-- 7. SERVER HOP LOGIC
+function ServerHop()
+	SetStatus("Searching Old Servers...")
+	Notify("Searching for a server (~4h old)...")
+	
+	local PlaceID = game.PlaceId
+	local AllIDs = {}
+	local foundAnything = ""
+	local actualHour = os.date("!*t").hour
+	
+	local function TPReturner()
+		local Site;
+		if foundAnything == "" then
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Desc&limit=100'))
+		else
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Desc&limit=100&cursor=' .. foundAnything))
+		end
+		
+		local ID = ""
+		if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+			foundAnything = Site.nextPageCursor
+		end
+		
+		for i,v in pairs(Site.data) do
+			local Possible = true
+			ID = tostring(v.id)
+			if tonumber(v.maxPlayers) > tonumber(v.playing) then
+				for _,Existing in pairs(AllIDs) do
+					if ID == tostring(Existing) then Possible = false end
+				end
+				if Possible == true then
+					table.insert(AllIDs, ID)
+					wait()
+					pcall(function()
+						SetStatus("Hopping to Server...")
+						TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
+					end)
+					wait(4)
+				end
+			end
+		end
+	end
+
+	-- Try recursive search
+	pcall(function()
+		TPReturner() 
+	end)
+end
+
+-- 8. MAIN EXECUTION LOOP
+local Running = true
+
+StopBtn.MouseButton1Click:Connect(function()
+	Running = false
+	SetStatus("Stopped.")
+	ScreenGui:Destroy()
 end)
 
--- Movement Loop (Runs every frame)
-RunService.RenderStepped:Connect(function()
-	if Settings.AutoFarm then
-		local Char = LocalPlayer.Character
-		if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
-		local HRP = Char.HumanoidRootPart
+task.spawn(function()
+	while Running do
+		wait(1)
+		local Fruit = FindFruit()
 		
-		-- Equip Tool
-		local Tool = Char:FindFirstChildOfClass("Tool")
-		if not Tool then
-			local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-			if BackpackTool then BackpackTool.Parent = Char end
-		end
-
-		local Enemy = GetTarget()
-		if Enemy then
-			StatusLabel.Text = "Attack: " .. Enemy.Name
-			local EnemyHRP = Enemy.HumanoidRootPart
+		if Fruit then
+			local FruitName = Fruit.Name
+			SetStatus("Found: " .. FruitName)
+			Notify("Fruit Found: " .. FruitName)
 			
-			-- [[ THE FIX: POSITION BEHIND ENEMY ]] --
-			-- We use CFrame * CFrame.new(0,0,distance) to go behind
-			-- 0,0,4 means 4 studs backwards from where the enemy is facing
-			local BehindPos = EnemyHRP.CFrame * CFrame.new(0, 0, Settings.Distance)
+			-- Identify the physical part to tween to
+			local TargetPart = Fruit:FindFirstChild("Handle") or Fruit:FindFirstChild("Main") or Fruit
 			
-			-- Tween or Set CFrame
-			HRP.CFrame = BehindPos
+			-- 1. Tween to Fruit
+			local Success = TweenTo(TargetPart)
 			
-			-- FORCE FACE THE ENEMY (Crucial for hits to register)
-			HRP.CFrame = CFrame.new(HRP.Position, EnemyHRP.Position)
-			
-			-- NoClip & No Physics
-			HRP.Velocity = Vector3.new(0,0,0)
-			for _, part in pairs(Char:GetDescendants()) do
-				if part:IsA("BasePart") then part.CanCollide = false end
+			if Success then
+				SetStatus("Collecting...")
+				-- 2. Teleport directly on top to be sure
+				if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+					LocalPlayer.Character.HumanoidRootPart.CFrame = TargetPart.CFrame
+				end
+				task.wait(0.5)
+				
+				-- 3. FireTouchInterest (Better than just touching)
+				if TargetPart:IsA("BasePart") and LocalPlayer.Character.HumanoidRootPart then
+					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, TargetPart, 0)
+					task.wait(0.1)
+					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, TargetPart, 1)
+				end
+				
+				Notify("Collected " .. FruitName)
+				task.wait(2) -- Wait for inventory update
 			end
 		else
-			StatusLabel.Text = "Scanning..."
+			SetStatus("No Fruits. Hopping in " .. Settings.ServerHopDelay .. "s")
+			Notify("No Fruit found. Server Hopping...")
+			task.wait(Settings.ServerHopDelay)
+			ServerHop()
 		end
 	end
 end)
