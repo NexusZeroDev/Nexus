@@ -1,12 +1,13 @@
--- [[ NEXA HUB v4.1 - ADVANCED ESP EDITION ]] --
--- Features: Slide-Swap UI, Detailed Player ESP, Speed/Jump, Combat, Safety
+-- [[ NEXA HUB v4.2 - COMPACT MOBILE EDITION ]] --
+-- Features: Compact UI, Anti-Ban Timer, Jump Ball, Split Aim, Smart ESP
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
 local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
@@ -14,301 +15,311 @@ local LocalPlayer = Players.LocalPlayer
 -- 1. CLEANUP
 if CoreGui:FindFirstChild("NexaHubUI") then CoreGui.NexaHubUI:Destroy() end
 
--- 2. CONFIGURATION & STATE
+-- 2. CONFIGURATION
 local Settings = {
 	Theme = Color3.fromRGB(160, 80, 255), -- Premium Purple
-	Bg = Color3.fromRGB(20, 20, 20),
-	Sidebar = Color3.fromRGB(15, 15, 15),
+	Bg = Color3.fromRGB(25, 25, 25),
+	Sidebar = Color3.fromRGB(18, 18, 18),
 	Text = Color3.fromRGB(255, 255, 255),
-	Dim = Color3.fromRGB(150, 150, 150),
+	Dim = Color3.fromRGB(160, 160, 160),
 }
 
 local State = {
-	SpeedEnabled = false,
-	SpeedAmt = 16,
-	JumpAmt = 50,
+	SpeedEnabled = false, SpeedAmt = 16,
+	JumpEnabled = false, JumpAmt = 50,
+	JumpBall = false,
 	WalkWater = false,
 	AntiStun = false,
 	HighPerf = false,
-	SafeMode = false,
-	SafeHP = 10000,
-	AimLock = false,
-	AimTarget = "Players", 
-	ESP = false
+	SafeMode = false, SafeHP = 10000,
+	AimPlayers = false,
+	AimMobs = false,
+	ESP = false,
+	AntiBan = false
 }
 
--- 3. UI CONSTRUCTION
+-- 3. UI CONSTRUCTION (COMPACT SIZE)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ResetOnSpawn = false
 
--- [[ TOP BAR ]] --
+-- [[ TOP BAR ]]
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Parent = ScreenGui
 TopBar.BackgroundColor3 = Settings.Bg
-TopBar.Size = UDim2.new(0, 320, 0, 48)
-TopBar.Position = UDim2.new(0.5, -160, 0, -100) -- Hidden Top
+TopBar.Size = UDim2.new(0, 280, 0, 40) -- Smaller Top Bar
+TopBar.Position = UDim2.new(0.5, -140, 0, -100)
 TopBar.BorderSizePixel = 0
-local TBCorner = Instance.new("UICorner"); TBCorner.CornerRadius = UDim.new(0, 10); TBCorner.Parent = TopBar
-local TBStroke = Instance.new("UIStroke"); TBStroke.Parent = TopBar; TBStroke.Color = Settings.Theme; TBStroke.Thickness = 1.5; TBStroke.Transparency = 0.3
+local TBC = Instance.new("UICorner"); TBC.CornerRadius = UDim.new(0, 10); TBC.Parent = TopBar
+local TBS = Instance.new("UIStroke"); TBS.Parent = TopBar; TBS.Color = Settings.Theme; TBS.Thickness = 1.5; TBS.Transparency = 0.3
 
-local Avatar = Instance.new("ImageLabel"); Avatar.Parent = TopBar; Avatar.BackgroundTransparency = 1; Avatar.Size = UDim2.new(0, 32, 0, 32); Avatar.Position = UDim2.new(0, 10, 0.5, -16)
+local Avatar = Instance.new("ImageLabel"); Avatar.Parent = TopBar; Avatar.BackgroundTransparency = 1; Avatar.Size = UDim2.new(0, 26, 0, 26); Avatar.Position = UDim2.new(0, 8, 0.5, -13)
 local AC = Instance.new("UICorner"); AC.CornerRadius = UDim.new(1, 0); AC.Parent = Avatar
 task.spawn(function() Avatar.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
 
-local Title = Instance.new("TextLabel"); Title.Parent = TopBar; Title.Text = "NEXA HUB"; Title.TextColor3 = Settings.Theme; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 14; Title.Size = UDim2.new(0, 200, 0, 20); Title.Position = UDim2.new(0, 52, 0.5, -11); Title.TextXAlignment = Enum.TextXAlignment.Left; Title.BackgroundTransparency = 1
-local Sub = Instance.new("TextLabel"); Sub.Parent = TopBar; Sub.Text = "Premium Suite"; Sub.TextColor3 = Settings.Dim; Sub.Font = Enum.Font.Gotham; Sub.TextSize = 11; Sub.Size = UDim2.new(0, 200, 0, 20); Sub.Position = UDim2.new(0, 52, 0.5, 3); Sub.TextXAlignment = Enum.TextXAlignment.Left; Sub.BackgroundTransparency = 1
+local Title = Instance.new("TextLabel"); Title.Parent = TopBar; Title.Text = "NEXA HUB"; Title.TextColor3 = Settings.Theme; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 12; Title.Size = UDim2.new(0, 150, 0, 20); Title.Position = UDim2.new(0, 42, 0.5, -10); Title.TextXAlignment = Enum.TextXAlignment.Left; Title.BackgroundTransparency = 1
+local Sub = Instance.new("TextLabel"); Sub.Parent = TopBar; Sub.Text = "v4.2 Mobile"; Sub.TextColor3 = Settings.Dim; Sub.Font = Enum.Font.Gotham; Sub.TextSize = 10; Sub.Size = UDim2.new(0, 150, 0, 20); Sub.Position = UDim2.new(0, 42, 0.5, 2); Sub.TextXAlignment = Enum.TextXAlignment.Left; Sub.BackgroundTransparency = 1
 
-local OpenBtn = Instance.new("TextButton"); OpenBtn.Parent = TopBar; OpenBtn.Size = UDim2.new(0, 32, 0, 32); OpenBtn.Position = UDim2.new(1, -42, 0.5, -16); OpenBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); OpenBtn.BackgroundTransparency = 0.5; OpenBtn.Text = ""
+local OpenBtn = Instance.new("TextButton"); OpenBtn.Parent = TopBar; OpenBtn.Size = UDim2.new(0, 26, 0, 26); OpenBtn.Position = UDim2.new(1, -34, 0.5, -13); OpenBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); OpenBtn.BackgroundTransparency = 0.5; OpenBtn.Text = "V"
 local BC = Instance.new("UICorner"); BC.CornerRadius = UDim.new(0, 6); BC.Parent = OpenBtn
-local Icon = Instance.new("ImageLabel"); Icon.Parent = OpenBtn; Icon.BackgroundTransparency = 1; Icon.Size = UDim2.new(0, 20, 0, 20); Icon.Position = UDim2.new(0.5, -10, 0.5, -10); Icon.Image = "rbxassetid://3944702336"; Icon.ImageColor3 = Settings.Text
 
--- [[ MAIN HUB ]] --
+-- [[ MAIN HUB - COMPACT MODE ]]
 local Main = Instance.new("Frame")
 Main.Name = "MainHub"
 Main.Parent = ScreenGui
 Main.BackgroundColor3 = Settings.Bg
-Main.Size = UDim2.new(0, 600, 0, 350)
-Main.Position = UDim2.new(0.5, -300, 1.5, 0) -- Hidden Bottom
+Main.Size = UDim2.new(0, 440, 0, 260) -- RESIZED FOR MOBILE
+Main.Position = UDim2.new(0.5, -220, 1.5, 0)
 Main.Visible = false
 local MC = Instance.new("UICorner"); MC.CornerRadius = UDim.new(0, 8); MC.Parent = Main
 local MS = Instance.new("UIStroke"); MS.Parent = Main; MS.Color = Settings.Theme; MS.Thickness = 1.5
 
 -- Sidebar
-local Sidebar = Instance.new("Frame"); Sidebar.Parent = Main; Sidebar.BackgroundColor3 = Settings.Sidebar; Sidebar.Size = UDim2.new(0, 140, 1, 0)
+local Sidebar = Instance.new("Frame"); Sidebar.Parent = Main; Sidebar.BackgroundColor3 = Settings.Sidebar; Sidebar.Size = UDim2.new(0, 110, 1, 0) -- Slimmer Sidebar
 local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(0, 8); SC.Parent = Sidebar
 local Fix = Instance.new("Frame"); Fix.Parent = Sidebar; Fix.BackgroundColor3 = Settings.Sidebar; Fix.Size = UDim2.new(0, 10, 1, 0); Fix.Position = UDim2.new(1, -10, 0, 0); Fix.BorderSizePixel = 0
 
-local SideTitle = Instance.new("TextLabel"); SideTitle.Parent = Sidebar; SideTitle.Text = "NEXA"; SideTitle.TextColor3 = Settings.Theme; SideTitle.Font = Enum.Font.GothamBlack; SideTitle.TextSize = 20; SideTitle.Size = UDim2.new(1, 0, 0, 50); SideTitle.BackgroundTransparency = 1
-
-local TabHolder = Instance.new("ScrollingFrame"); TabHolder.Parent = Sidebar; TabHolder.Size = UDim2.new(1, 0, 1, -50); TabHolder.Position = UDim2.new(0, 0, 0, 50); TabHolder.BackgroundTransparency = 1; TabHolder.BorderSizePixel = 0; TabHolder.ScrollBarThickness = 0
+local TabHolder = Instance.new("ScrollingFrame"); TabHolder.Parent = Sidebar; TabHolder.Size = UDim2.new(1, 0, 1, -10); TabHolder.Position = UDim2.new(0, 0, 0, 10); TabHolder.BackgroundTransparency = 1; TabHolder.BorderSizePixel = 0; TabHolder.ScrollBarThickness = 0
 local TabList = Instance.new("UIListLayout"); TabList.Parent = TabHolder; TabList.SortOrder = Enum.SortOrder.LayoutOrder; TabList.Padding = UDim.new(0, 5)
 
 -- Content
-local Content = Instance.new("Frame"); Content.Parent = Main; Content.BackgroundTransparency = 1; Content.Size = UDim2.new(1, -150, 1, -20); Content.Position = UDim2.new(0, 150, 0, 10)
-local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = Main; CloseBtn.Text = "-"; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 24; CloseBtn.TextColor3 = Settings.Dim; CloseBtn.BackgroundTransparency = 1; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 0)
+local Content = Instance.new("Frame"); Content.Parent = Main; Content.BackgroundTransparency = 1; Content.Size = UDim2.new(1, -120, 1, -10); Content.Position = UDim2.new(0, 120, 0, 5)
+local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = Main; CloseBtn.Text = "-"; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 20; CloseBtn.TextColor3 = Settings.Dim; CloseBtn.BackgroundTransparency = 1; CloseBtn.Size = UDim2.new(0, 25, 0, 25); CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 
--- 4. HELPER FUNCTIONS
-local function ClearContent()
-	for _, v in pairs(Content:GetChildren()) do v:Destroy() end
+-- 4. UTILS & NOTIFICATIONS
+local function Notify(msg)
+	StarterGui:SetCore("SendNotification", {Title = "NEXA SECURITY", Text = msg, Duration = 5})
 end
 
-local function AddToggle(text, default, callback)
-	local Frame = Instance.new("Frame"); Frame.Parent = Content; Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Frame.Size = UDim2.new(1, 0, 0, 40)
-	local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Frame
-	
-	local Lbl = Instance.new("TextLabel"); Lbl.Parent = Frame; Lbl.Text = text; Lbl.TextColor3 = Settings.Text; Lbl.Font = Enum.Font.GothamBold; Lbl.TextSize = 14; Lbl.Size = UDim2.new(0.7, 0, 1, 0); Lbl.Position = UDim2.new(0, 15, 0, 0); Lbl.TextXAlignment = Enum.TextXAlignment.Left; Lbl.BackgroundTransparency = 1
-	
-	local Btn = Instance.new("TextButton"); Btn.Parent = Frame; Btn.Size = UDim2.new(0, 24, 0, 24); Btn.Position = UDim2.new(1, -34, 0.5, -12); Btn.BackgroundColor3 = default and Settings.Theme or Color3.fromRGB(50, 50, 50); Btn.Text = ""
-	local BC = Instance.new("UICorner"); BC.CornerRadius = UDim.new(0, 4); BC.Parent = Btn
-	
-	Btn.MouseButton1Click:Connect(function()
-		default = not default
-		Btn.BackgroundColor3 = default and Settings.Theme or Color3.fromRGB(50, 50, 50)
-		callback(default)
-	end)
-end
-
-local function AddInput(text, defaultVal, callback)
-	local Frame = Instance.new("Frame"); Frame.Parent = Content; Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Frame.Size = UDim2.new(1, 0, 0, 40)
-	local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Frame
-	
-	local Lbl = Instance.new("TextLabel"); Lbl.Parent = Frame; Lbl.Text = text; Lbl.TextColor3 = Settings.Text; Lbl.Font = Enum.Font.GothamMedium; Lbl.TextSize = 14; Lbl.Size = UDim2.new(0.6, 0, 1, 0); Lbl.Position = UDim2.new(0, 15, 0, 0); Lbl.TextXAlignment = Enum.TextXAlignment.Left; Lbl.BackgroundTransparency = 1
-	
-	local Box = Instance.new("TextBox"); Box.Parent = Frame; Box.Size = UDim2.new(0, 80, 0, 24); Box.Position = UDim2.new(1, -90, 0.5, -12); Box.BackgroundColor3 = Color3.fromRGB(50, 50, 50); Box.TextColor3 = Settings.Text; Box.Text = tostring(defaultVal); Box.Font = Enum.Font.Gotham
-	local BC = Instance.new("UICorner"); BC.CornerRadius = UDim.new(0, 4); BC.Parent = Box
-	
-	Box.FocusLost:Connect(function()
-		local num = tonumber(Box.Text)
-		if num then callback(num) else Box.Text = tostring(defaultVal) end
-	end)
-end
-
-local function AddList(items)
-	local Layout = Instance.new("UIListLayout"); Layout.Parent = Content; Layout.Padding = UDim.new(0, 6); Layout.SortOrder = Enum.SortOrder.LayoutOrder
-end
-
--- ===========================
---     ADVANCED ESP SYSTEM
--- ===========================
-
-local function RemoveESP()
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v.Name == "NexaESP" or v.Name == "NexaInfo" then v:Destroy() end
-	end
-end
-
-local function DrawESP(char, player)
-	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-	if char:FindFirstChild("NexaESP") then return end -- Already has ESP
-
-	-- 1. Determine Team/Faction Color
-	local TeamColor = Color3.fromRGB(255, 255, 255) -- Default White
-	local FactionText = "Player"
-
-	if player.Team then
-		local tName = string.lower(player.Team.Name)
-		if string.find(tName, "pirate") then
-			TeamColor = Color3.fromRGB(255, 60, 60) -- RED for Pirates
-			FactionText = "Pirate"
-		elseif string.find(tName, "marine") then
-			TeamColor = Color3.fromRGB(60, 150, 255) -- BLUE for Marines
-			FactionText = "Marine"
+local function ServerHop()
+	local PlaceID = game.PlaceId
+	local AllIDs = {}
+	local foundAnything = ""
+	local function TPReturner()
+		local Site;
+		if foundAnything == "" then
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
+		else
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+		end
+		if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then foundAnything = Site.nextPageCursor end
+		for i,v in pairs(Site.data) do
+			local Possible = true
+			if tonumber(v.maxPlayers) > tonumber(v.playing) then
+				for _,Existing in pairs(AllIDs) do if tostring(v.id) == tostring(Existing) then Possible = false end end
+				if Possible == true then
+					table.insert(AllIDs, tostring(v.id))
+					TeleportService:TeleportToPlaceInstance(PlaceID, tostring(v.id), LocalPlayer)
+					wait(4)
+				end
+			end
 		end
 	end
-
-	-- 2. Create Highlight (Chams)
-	local HL = Instance.new("Highlight")
-	HL.Name = "NexaESP"
-	HL.Parent = char
-	HL.FillColor = TeamColor
-	HL.OutlineColor = Color3.new(1,1,1)
-	HL.FillTransparency = 0.6
-	HL.OutlineTransparency = 0.2
-
-	-- 3. Create Text Info (Billboard)
-	local BG = Instance.new("BillboardGui")
-	BG.Name = "NexaInfo"
-	BG.Parent = char.HumanoidRootPart
-	BG.Size = UDim2.new(0, 200, 0, 50)
-	BG.StudsOffset = Vector3.new(0, 3.5, 0) -- Above Head
-	BG.AlwaysOnTop = true
-
-	local InfoLabel = Instance.new("TextLabel")
-	InfoLabel.Parent = BG
-	InfoLabel.Size = UDim2.new(1, 0, 1, 0)
-	InfoLabel.BackgroundTransparency = 1
-	InfoLabel.Font = Enum.Font.GothamBold
-	InfoLabel.TextStrokeTransparency = 0
-	InfoLabel.TextColor3 = TeamColor
-	InfoLabel.TextSize = 12
-	InfoLabel.Text = "Loading..." -- Placeholder
-	
-	-- Store references for the Update loop
-	BG:SetAttribute("Faction", FactionText)
+	pcall(function() TPReturner() end)
 end
 
--- ===========================
---     RUNTIME LOOPS
--- ===========================
+-- 5. FUNCTIONALITY HANDLERS
 
+-- Jump Ball Logic
+local BallPart = nil
+local function UpdateJumpBall()
+	if State.JumpBall then
+		if not BallPart then
+			BallPart = Instance.new("Part")
+			BallPart.Name = "NexaJumpBall"
+			BallPart.Shape = Enum.PartType.Ball
+			BallPart.Size = Vector3.new(4,4,4)
+			BallPart.Material = Enum.Material.Neon
+			BallPart.Color = Settings.Theme
+			BallPart.Parent = workspace
+			-- Spawn in front
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				BallPart.Position = LocalPlayer.Character.HumanoidRootPart.Position + Vector3.new(5, 5, 0)
+			end
+			-- Physics properties
+			BallPart.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5, 1, 1) -- Friction so it rolls but stops
+			
+			BallPart.Touched:Connect(function(hit)
+				if hit.Parent == LocalPlayer.Character then
+					local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+					if Hum then
+						Hum.JumpPower = 300 -- SUPER JUMP
+						Hum.Jump = true
+						task.wait(0.5)
+						Hum.JumpPower = State.JumpAmt -- Reset
+					end
+				end
+			end)
+		end
+	else
+		if BallPart then BallPart:Destroy(); BallPart = nil end
+	end
+end
+
+-- Anti-Ban Logic
+local JoinTime = tick()
+local Warned25, Warned28 = false, false
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if State.AntiBan then
+			local Elapsed = tick() - JoinTime
+			if Elapsed >= 1500 and not Warned25 then Notify("Security: Server Hop in 5 mins"); Warned25 = true end
+			if Elapsed >= 1680 and not Warned28 then Notify("Security: Server Hop in 2 mins"); Warned28 = true end
+			if Elapsed >= 1800 then 
+				Notify("Security: Hopping Now...")
+				ServerHop() 
+			end
+		end
+	end
+end)
+
+-- 6. RUNTIME LOOPS
 RunService.RenderStepped:Connect(function()
 	local Char = LocalPlayer.Character
 	if not Char then return end
 	local Hum = Char:FindFirstChild("Humanoid")
 	local HRP = Char:FindFirstChild("HumanoidRootPart")
 	
-	-- LOGIC: SPEED, JUMP, WATER, STUN
+	-- Movement
 	if Hum and State.SpeedEnabled then Hum.WalkSpeed = State.SpeedAmt end
-	if Hum then Hum.JumpPower = State.JumpAmt end
+	if Hum and State.JumpEnabled then Hum.JumpPower = State.JumpAmt end
 	
+	-- Water Walk
 	if HRP and State.WalkWater then
-		local Platform = workspace:FindFirstChild("NexaWaterPlat")
-		if not Platform then
-			Platform = Instance.new("Part"); Platform.Name = "NexaWaterPlat"; Platform.Parent = workspace; Platform.Anchored = true; Platform.Transparency = 1; Platform.Size = Vector3.new(20, 1, 20); Platform.CanCollide = true
-		end
-		Platform.CFrame = CFrame.new(HRP.Position.X, -2, HRP.Position.Z)
+		local P = workspace:FindFirstChild("NexaPlat") or Instance.new("Part"); P.Name="NexaPlat"; P.Parent=workspace; P.Anchored=true; P.Transparency=1; P.Size=Vector3.new(15,1,15); P.CanCollide=true
+		P.CFrame = CFrame.new(HRP.Position.X, -3.5, HRP.Position.Z)
 	else
-		if workspace:FindFirstChild("NexaWaterPlat") then workspace.NexaWaterPlat:Destroy() end
+		if workspace:FindFirstChild("NexaPlat") then workspace.NexaPlat:Destroy() end
 	end
 	
+	-- Anti Stun (Improved)
 	if Hum and State.AntiStun then
-		Hum.PlatformStand = false; Hum.Sit = false
-		if Hum:GetState() == Enum.HumanoidStateType.Physics then Hum:ChangeState(Enum.HumanoidStateType.Running) end
+		Hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+		Hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+		Hum.PlatformStand = false
+		Hum.Sit = false
 	end
 	
-	if Hum and State.SafeMode and Hum.Health < State.SafeHP and Hum.Health > 0 and HRP then
-		HRP.CFrame = HRP.CFrame + Vector3.new(0, 500, 0); HRP.Anchored = true
-	end
-
-	-- LOGIC: ESP UPDATER
-	if State.ESP then
-		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= LocalPlayer and p.Character then
-				-- Add ESP if missing
-				if not p.Character:FindFirstChild("NexaESP") then
-					DrawESP(p.Character, p)
-				end
-				
-				-- Update Text
-				local InfoGUI = p.Character:FindFirstChild("HumanoidRootPart") and p.Character.HumanoidRootPart:FindFirstChild("NexaInfo")
-				local pHum = p.Character:FindFirstChild("Humanoid")
-				
-				if InfoGUI and InfoGUI:FindFirstChild("TextLabel") and HRP and pHum then
-					local Dist = math.floor((HRP.Position - p.Character.HumanoidRootPart.Position).Magnitude)
-					local HP = math.floor((pHum.Health / pHum.MaxHealth) * 100)
-					local Fac = InfoGUI:GetAttribute("Faction") or "Player"
-					
-					InfoGUI.TextLabel.Text = string.format("[%s] %s\nHP: %d%% | Dist: %dm", Fac, p.Name, HP, Dist)
+	-- Aim Logic (Split)
+	if (State.AimPlayers or State.AimMobs) and HRP then
+		local Target, Dist = nil, 9999
+		local Folder = nil
+		
+		if State.AimPlayers then Folder = Players:GetPlayers() end
+		
+		-- Check Players
+		if State.AimPlayers then
+			for _, v in pairs(Players:GetPlayers()) do
+				if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+					local d = (v.Character.HumanoidRootPart.Position - HRP.Position).Magnitude
+					if d < Dist then Dist = d; Target = v.Character.HumanoidRootPart end
 				end
 			end
 		end
-	else
-		RemoveESP()
+		
+		-- Check Mobs (Overrides Players if closer/enabled)
+		if State.AimMobs then
+			local Mobs = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
+			for _, v in pairs(Mobs:GetChildren()) do
+				if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+					local d = (v.HumanoidRootPart.Position - HRP.Position).Magnitude
+					if d < Dist then Dist = d; Target = v.HumanoidRootPart end
+				end
+			end
+		end
+		
+		if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
 	end
 end)
 
--- 6. TAB SYSTEM
+-- 7. TAB GENERATOR
+local function ClearContent() for _, v in pairs(Content:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end end
+
+local function AddToggle(text, val, cb)
+	local F = Instance.new("Frame"); F.Parent = Content; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
+	local L = Instance.new("TextLabel"); L.Parent=F; L.Text=text; L.TextColor3=Settings.Text; L.Size=UDim2.new(0.7,0,1,0); L.Position=UDim2.new(0,10,0,0); L.BackgroundTransparency=1; L.TextXAlignment=Enum.TextXAlignment.Left; L.Font=Enum.Font.GothamMedium; L.TextSize=12
+	local B = Instance.new("TextButton"); B.Parent=F; B.Size=UDim2.new(0,20,0,20); B.Position=UDim2.new(1,-30,0.5,-10); B.BackgroundColor3 = val and Settings.Theme or Color3.fromRGB(50,50,50); B.Text=""; local BC=Instance.new("UICorner"); BC.Parent=B; BC.CornerRadius=UDim.new(0,4)
+	B.MouseButton1Click:Connect(function() val = not val; B.BackgroundColor3 = val and Settings.Theme or Color3.fromRGB(50,50,50); cb(val) end)
+end
+
+local function AddButton(text, cb)
+	local F = Instance.new("Frame"); F.Parent = Content; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
+	local B = Instance.new("TextButton"); B.Parent=F; B.Size=UDim2.new(1,0,1,0); B.BackgroundTransparency=1; B.Text=text; B.TextColor3=Settings.Text; B.Font=Enum.Font.GothamBold; B.TextSize=12
+	B.MouseButton1Click:Connect(cb)
+end
+
+local function AddInput(text, default, cb)
+	local F = Instance.new("Frame"); F.Parent = Content; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
+	local L = Instance.new("TextLabel"); L.Parent=F; L.Text=text; L.TextColor3=Settings.Text; L.Size=UDim2.new(0.6,0,1,0); L.Position=UDim2.new(0,10,0,0); L.BackgroundTransparency=1; L.TextXAlignment=Enum.TextXAlignment.Left; L.Font=Enum.Font.GothamMedium; L.TextSize=12
+	local B = Instance.new("TextBox"); B.Parent=F; B.Size=UDim2.new(0,60,0,20); B.Position=UDim2.new(1,-70,0.5,-10); B.BackgroundColor3=Color3.fromRGB(50,50,50); B.Text=tostring(default); B.TextColor3=Settings.Text; local BC=Instance.new("UICorner"); BC.Parent=B; BC.CornerRadius=UDim.new(0,4)
+	B.FocusLost:Connect(function() cb(tonumber(B.Text) or default) end)
+end
+
 local function LoadTab(name)
 	ClearContent()
-	AddList()
-	
+	local L = Instance.new("UIListLayout"); L.Parent=Content; L.Padding=UDim.new(0,5); L.SortOrder=Enum.SortOrder.LayoutOrder
+
 	if name == "Main" then
-		AddToggle("Speed Boost (Enable Multiplier)", State.SpeedEnabled, function(v) State.SpeedEnabled = v end)
+		AddToggle("Speed Boost", State.SpeedEnabled, function(v) State.SpeedEnabled = v end)
 		AddInput("Speed Amount", State.SpeedAmt, function(v) State.SpeedAmt = v end)
-		AddInput("Jump Power", State.JumpAmt, function(v) State.JumpAmt = v end)
+		AddToggle("Jump Boost", State.JumpEnabled, function(v) State.JumpEnabled = v end)
+		AddToggle("Spawn Jump Ball", State.JumpBall, function(v) State.JumpBall = v; UpdateJumpBall() end)
 		AddToggle("Walk on Water", State.WalkWater, function(v) State.WalkWater = v end)
-		AddToggle("Anti-Stun", State.AntiStun, function(v) State.AntiStun = v end)
-		AddToggle("High Performance (Low Gfx)", State.HighPerf, function(v)
-			State.HighPerf = v
-			if v then setfpscap(30); Lighting.GlobalShadows = false
-			else setfpscap(999); Lighting.GlobalShadows = true end
-		end)
-	
-	elseif name == "Combat" then
-		AddToggle("Aim Lock", State.AimLock, function(v) State.AimLock = v end)
-		AddToggle("Aim Target: Players (Off = Mobs)", true, function(v) State.AimTarget = v and "Players" or "Mobs" end)
-		AddToggle("Advanced ESP (HP/Dist/Team)", State.ESP, function(v) 
-			State.ESP = v 
-			if not v then RemoveESP() end
-		end)
 		
-	elseif name == "Safety" then
-		AddToggle("Enable Safe Mode (Auto TP)", State.SafeMode, function(v) State.SafeMode = v end)
-		AddInput("HP Threshold", State.SafeHP, function(v) State.SafeHP = v end)
+	elseif name == "Combat" then
+		AddToggle("Aim: Players", State.AimPlayers, function(v) State.AimPlayers = v; if v then State.AimMobs = false end end)
+		AddToggle("Aim: Mobs", State.AimMobs, function(v) State.AimMobs = v; if v then State.AimPlayers = false end end)
+		AddToggle("Smart ESP", State.ESP, function(v) State.ESP = v end)
+		AddToggle("Anti-Stun (Fixed)", State.AntiStun, function(v) State.AntiStun = v end)
+		
+	elseif name == "Perf." then
+		AddButton("Find Best Ping Server", function() ServerHop() end)
+		AddToggle("Anti-Ban (30m Hop)", State.AntiBan, function(v) State.AntiBan = v; if v then Notify("Security Active") end end)
+		AddToggle("High Performance", State.HighPerf, function(v)
+			State.HighPerf = v
+			if v then 
+				setfpscap(30)
+				Lighting.GlobalShadows = false 
+				for _,v in pairs(workspace:GetDescendants()) do if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic end end
+			else 
+				setfpscap(999) 
+				Lighting.GlobalShadows = true 
+			end
+		end)
 	end
 end
 
 local function CreateTabBtn(name)
-	local Btn = Instance.new("TextButton"); Btn.Parent = TabHolder; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.BackgroundTransparency = 1
-	Btn.Text = "  " .. name; Btn.TextColor3 = Settings.Dim; Btn.TextXAlignment = Enum.TextXAlignment.Left; Btn.Font = Enum.Font.GothamMedium; Btn.TextSize = 14
-	Btn.MouseButton1Click:Connect(function() LoadTab(name) end)
+	local B = Instance.new("TextButton"); B.Parent=TabHolder; B.Size=UDim2.new(1,-5,0,30); B.BackgroundTransparency=1; B.Text=name; B.TextColor3=Settings.Dim; B.Font=Enum.Font.GothamMedium; B.TextSize=12; B.TextXAlignment=Enum.TextXAlignment.Left
+	local P = Instance.new("UIPadding"); P.Parent=B; P.PaddingLeft=UDim.new(0,10)
+	B.MouseButton1Click:Connect(function() LoadTab(name) end)
 end
 
 CreateTabBtn("Main")
 CreateTabBtn("Combat")
-CreateTabBtn("Safety")
+CreateTabBtn("Perf.")
 
--- 7. ANIMATIONS
-local function ToggleHub(state)
-	if state == "Open" then
-		TweenService:Create(TopBar, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -160, 0, -100)}):Play()
+-- 8. ANIMATION
+local function ToggleHub(val)
+	if val then
+		TweenService:Create(TopBar, TweenInfo.new(0.5), {Position=UDim2.new(0.5,-140,0,-100)}):Play()
 		task.wait(0.2)
-		Main.Visible = true
-		TweenService:Create(Main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -300, 0.5, -175)}):Play()
+		Main.Visible=true
+		TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Position=UDim2.new(0.5,-220,0.5,-130)}):Play()
 	else
-		TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -300, 1.5, 0)}):Play()
-		task.wait(0.3)
-		TweenService:Create(TopBar, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -160, 0, 15)}):Play()
+		TweenService:Create(Main, TweenInfo.new(0.5), {Position=UDim2.new(0.5,-220,1.5,0)}):Play()
+		task.wait(0.2)
+		TweenService:Create(TopBar, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Position=UDim2.new(0.5,-140,0,10)}):Play()
 	end
 end
 
-OpenBtn.MouseButton1Click:Connect(function() ToggleHub("Open") end)
-CloseBtn.MouseButton1Click:Connect(function() ToggleHub("Close") end)
+OpenBtn.MouseButton1Click:Connect(function() ToggleHub(true) end)
+CloseBtn.MouseButton1Click:Connect(function() ToggleHub(false) end)
 
 -- Init
 task.wait(1)
-TweenService:Create(TopBar, TweenInfo.new(1, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -160, 0, 15)}):Play()
+TweenService:Create(TopBar, TweenInfo.new(1, Enum.EasingStyle.Exponential), {Position=UDim2.new(0.5,-140,0,10)}):Play()
