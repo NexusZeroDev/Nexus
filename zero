@@ -1,176 +1,335 @@
--- [[ NEXA HUB - PROFESSIONAL LAUNCHER UI ]] --
--- Developed by NexaDev
+-- [[ NEXA HUB - PROFESSIONAL UI SYSTEM ]] --
+-- Build: v3.0 | Premium Purple Edition
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer
 
--- 1. CLEANUP PREVIOUS UI
+-- 1. CLEANUP & CONFIGURATION
 if CoreGui:FindFirstChild("NexaHubUI") then
 	CoreGui.NexaHubUI:Destroy()
 end
 
--- 2. GUI SETTINGS
 local Settings = {
-	BarWidth = 320,
-	BarHeight = 48,
-	ThemeColor = Color3.fromRGB(170, 120, 255), -- Premium Light Purple
-	BackgroundColor = Color3.fromRGB(25, 25, 25), -- Dark Grey
-	StrokeColor = Color3.fromRGB(50, 50, 50)
+	ThemeColor = Color3.fromRGB(160, 80, 255), -- Premium Neon Purple
+	DarkBg = Color3.fromRGB(20, 20, 20),       -- Main Background
+	DarkerBg = Color3.fromRGB(15, 15, 15),     -- Sidebar Background
+	TextColor = Color3.fromRGB(255, 255, 255),
+	TextDim = Color3.fromRGB(150, 150, 150),
+	TopBarSize = UDim2.new(0, 320, 0, 48),
+	MainSize = UDim2.new(0, 650, 0, 380)
 }
 
--- 3. CREATE SCREEN GUI
+-- 2. CREATE SCREEN GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = CoreGui
-ScreenGui.IgnoreGuiInset = true -- Ensures it renders properly at the top
+ScreenGui.IgnoreGuiInset = true
 ScreenGui.ResetOnSpawn = false
 
--- 4. MAIN TOP BAR (THE "PILL")
+-- ============================================================================
+--    PART A: THE TOP BAR (MINI UI)
+-- ============================================================================
+
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Parent = ScreenGui
-TopBar.BackgroundColor3 = Settings.BackgroundColor
-TopBar.Size = UDim2.new(0, Settings.BarWidth, 0, Settings.BarHeight)
--- START POSITION (Hidden above screen)
-TopBar.Position = UDim2.new(0.5, -(Settings.BarWidth/2), 0, -100) 
+TopBar.BackgroundColor3 = Settings.DarkBg
+TopBar.Size = Settings.TopBarSize
+-- Start position (Above screen for intro)
+TopBar.Position = UDim2.new(0.5, -160, 0, -100) 
 TopBar.BorderSizePixel = 0
 
--- ROUNDED CORNERS
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = TopBar
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 10)
+TopBarCorner.Parent = TopBar
 
--- THIN BORDER STROKE
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Parent = TopBar
-UIStroke.Color = Settings.StrokeColor
-UIStroke.Thickness = 1.5
-UIStroke.Transparency = 0.2
+local TopBarStroke = Instance.new("UIStroke")
+TopBarStroke.Parent = TopBar
+TopBarStroke.Color = Settings.ThemeColor
+TopBarStroke.Thickness = 1.5
+TopBarStroke.Transparency = 0.3
 
--- 5. ELEMENTS INSIDE THE BAR
-
--- USER AVATAR (LEFT)
+-- Avatar
 local AvatarFrame = Instance.new("ImageLabel")
-AvatarFrame.Name = "Avatar"
 AvatarFrame.Parent = TopBar
-AvatarFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 AvatarFrame.BackgroundTransparency = 1
 AvatarFrame.Size = UDim2.new(0, 32, 0, 32)
 AvatarFrame.Position = UDim2.new(0, 10, 0.5, -16)
-
--- Get User Thumbnail
+local AvatarCorner = Instance.new("UICorner")
+AvatarCorner.CornerRadius = UDim.new(1, 0)
+AvatarCorner.Parent = AvatarFrame
 task.spawn(function()
-	local content, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+	local content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
 	AvatarFrame.Image = content
 end)
 
-local AvatarCorner = Instance.new("UICorner")
-AvatarCorner.CornerRadius = UDim.new(1, 0) -- Circle
-AvatarCorner.Parent = AvatarFrame
+-- Text Info
+local TopTitle = Instance.new("TextLabel")
+TopTitle.Parent = TopBar
+TopTitle.Text = "NEXA HUB"
+TopTitle.TextColor3 = Settings.ThemeColor
+TopTitle.Font = Enum.Font.GothamBlack
+TopTitle.TextSize = 14
+TopTitle.Size = UDim2.new(0, 200, 0, 20)
+TopTitle.Position = UDim2.new(0, 52, 0.5, -11)
+TopTitle.TextXAlignment = Enum.TextXAlignment.Left
+TopTitle.BackgroundTransparency = 1
 
--- TITLE TEXT (TOP MIDDLE)
-local Title = Instance.new("TextLabel")
-Title.Name = "Title"
-Title.Parent = TopBar
-Title.Text = "NEXA HUB [Premium]"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
-Title.Size = UDim2.new(0, 200, 0, 20)
-Title.Position = UDim2.new(0, 52, 0.5, -11)
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.BackgroundTransparency = 1
+local TopSub = Instance.new("TextLabel")
+TopSub.Parent = TopBar
+TopSub.Text = "Premium Edition"
+TopSub.TextColor3 = Settings.TextDim
+TopSub.Font = Enum.Font.Gotham
+TopSub.TextSize = 11
+TopSub.Size = UDim2.new(0, 200, 0, 20)
+TopSub.Position = UDim2.new(0, 52, 0.5, 3)
+TopSub.TextXAlignment = Enum.TextXAlignment.Left
+TopSub.BackgroundTransparency = 1
 
--- SUBTITLE/CREDITS (BOTTOM MIDDLE)
-local SubTitle = Instance.new("TextLabel")
-SubTitle.Name = "SubTitle"
-SubTitle.Parent = TopBar
-SubTitle.Text = "Build: v2.4 | Stable"
-SubTitle.TextColor3 = Color3.fromRGB(150, 150, 150)
-SubTitle.Font = Enum.Font.Gotham
-SubTitle.TextSize = 11
-SubTitle.Size = UDim2.new(0, 200, 0, 20)
-SubTitle.Position = UDim2.new(0, 52, 0.5, 3)
-SubTitle.TextXAlignment = Enum.TextXAlignment.Left
-SubTitle.BackgroundTransparency = 1
-
--- MAXIMIZE BUTTON (RIGHT)
-local MaximizeBtn = Instance.new("TextButton")
-MaximizeBtn.Name = "Maximize"
-MaximizeBtn.Parent = TopBar
-MaximizeBtn.Size = UDim2.new(0, 32, 0, 32)
-MaximizeBtn.Position = UDim2.new(1, -42, 0.5, -16)
-MaximizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-MaximizeBtn.BackgroundTransparency = 0.5
-MaximizeBtn.Text = ""
-MaximizeBtn.AutoButtonColor = false -- We do custom animation
-
+-- Fullscreen Button
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Parent = TopBar
+OpenBtn.Size = UDim2.new(0, 32, 0, 32)
+OpenBtn.Position = UDim2.new(1, -42, 0.5, -16)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+OpenBtn.BackgroundTransparency = 0.5
+OpenBtn.Text = ""
 local BtnCorner = Instance.new("UICorner")
 BtnCorner.CornerRadius = UDim.new(0, 6)
-BtnCorner.Parent = MaximizeBtn
+BtnCorner.Parent = OpenBtn
 
--- The Icon (Four corners icon or similar)
-local Icon = Instance.new("ImageLabel")
-Icon.Parent = MaximizeBtn
-Icon.BackgroundTransparency = 1
-Icon.Size = UDim2.new(0, 16, 0, 16)
-Icon.Position = UDim2.new(0.5, -8, 0.5, -8)
-Icon.Image = "rbxassetid://3926305904" -- Rectangular Maximize Icon
-Icon.ImageRectOffset = Vector2.new(244, 44)
-Icon.ImageRectSize = Vector2.new(36, 36)
-Icon.ImageColor3 = Color3.fromRGB(200, 200, 200)
+local OpenIcon = Instance.new("ImageLabel")
+OpenIcon.Parent = OpenBtn
+OpenIcon.BackgroundTransparency = 1
+OpenIcon.Size = UDim2.new(0, 20, 0, 20)
+OpenIcon.Position = UDim2.new(0.5, -10, 0.5, -10)
+OpenIcon.Image = "rbxassetid://3944702336" -- Maximize Icon
+OpenIcon.ImageColor3 = Settings.TextColor
 
--- 6. ANIMATIONS
+-- ============================================================================
+--    PART B: THE MAIN HUB (FULL UI)
+-- ============================================================================
 
--- HOVER EFFECT FOR BUTTON
-MaximizeBtn.MouseEnter:Connect(function()
-	TweenService:Create(Icon, TweenInfo.new(0.2), {ImageColor3 = Settings.ThemeColor}):Play()
-	TweenService:Create(MaximizeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-end)
+local MainContainer = Instance.new("Frame")
+MainContainer.Name = "MainHub"
+MainContainer.Parent = ScreenGui
+MainContainer.BackgroundColor3 = Settings.DarkBg
+MainContainer.Size = Settings.MainSize
+-- Start Position (Below screen)
+MainContainer.Position = UDim2.new(0.5, -325, 1.2, 0) 
+MainContainer.BorderSizePixel = 0
+MainContainer.BackgroundTransparency = 0.05
 
-MaximizeBtn.MouseLeave:Connect(function()
-	TweenService:Create(Icon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(200, 200, 200)}):Play()
-	TweenService:Create(MaximizeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
-end)
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainContainer
 
--- CLICK EFFECT
-MaximizeBtn.MouseButton1Click:Connect(function()
-	-- Animation for click
-	local pop = TweenService:Create(MaximizeBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(1, -40, 0.5, -14)})
-	pop:Play()
-	pop.Completed:Wait()
-	TweenService:Create(MaximizeBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(1, -42, 0.5, -16)}):Play()
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainContainer
+MainStroke.Color = Settings.ThemeColor
+MainStroke.Thickness = 1.5
+
+-- Sidebar (Left)
+local Sidebar = Instance.new("Frame")
+Sidebar.Parent = MainContainer
+Sidebar.BackgroundColor3 = Settings.DarkerBg
+Sidebar.Size = UDim2.new(0, 160, 1, 0)
+Sidebar.BorderSizePixel = 0
+Sidebar.BackgroundTransparency = 0.5
+
+local SideCorner = Instance.new("UICorner")
+SideCorner.CornerRadius = UDim.new(0, 8)
+SideCorner.Parent = Sidebar
+
+-- Fix corner clipping
+local CornerFix = Instance.new("Frame")
+CornerFix.Parent = Sidebar
+CornerFix.BorderSizePixel = 0
+CornerFix.BackgroundColor3 = Settings.DarkerBg
+CornerFix.BackgroundTransparency = 0.5
+CornerFix.Size = UDim2.new(0, 10, 1, 0)
+CornerFix.Position = UDim2.new(1, -10, 0, 0)
+
+-- Sidebar Title
+local MainTitle = Instance.new("TextLabel")
+MainTitle.Parent = Sidebar
+MainTitle.Text = "NEXA HUB"
+MainTitle.TextColor3 = Settings.TextColor
+MainTitle.Font = Enum.Font.GothamBold
+MainTitle.TextSize = 16
+MainTitle.Size = UDim2.new(1, -20, 0, 40)
+MainTitle.Position = UDim2.new(0, 15, 0, 10)
+MainTitle.TextXAlignment = Enum.TextXAlignment.Left
+MainTitle.BackgroundTransparency = 1
+
+-- Button Container
+local ButtonHolder = Instance.new("ScrollingFrame")
+ButtonHolder.Parent = Sidebar
+ButtonHolder.Size = UDim2.new(1, 0, 1, -60)
+ButtonHolder.Position = UDim2.new(0, 0, 0, 60)
+ButtonHolder.BackgroundTransparency = 1
+ButtonHolder.ScrollBarThickness = 2
+ButtonHolder.BorderSizePixel = 0
+
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = ButtonHolder
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 5)
+
+-- Content Area (Right)
+local ContentArea = Instance.new("Frame")
+ContentArea.Parent = MainContainer
+ContentArea.BackgroundTransparency = 1
+ContentArea.Size = UDim2.new(1, -170, 1, -20)
+ContentArea.Position = UDim2.new(0, 170, 0, 10)
+
+-- Close (Minimize) Button on Main Hub
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = MainContainer
+CloseBtn.Text = "-"
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 24
+CloseBtn.TextColor3 = Settings.TextDim
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+
+-- ============================================================================
+--    PART C: FUNCTIONS & ANIMATIONS
+-- ============================================================================
+
+local function CreateTab(name, iconId)
+	local Btn = Instance.new("TextButton")
+	Btn.Parent = ButtonHolder
+	Btn.Size = UDim2.new(1, -20, 0, 35)
+	Btn.BackgroundColor3 = Settings.DarkBg
+	Btn.BackgroundTransparency = 1
+	Btn.Text = "      " .. name
+	Btn.TextColor3 = Settings.TextDim
+	Btn.Font = Enum.Font.GothamMedium
+	Btn.TextSize = 13
+	Btn.TextXAlignment = Enum.TextXAlignment.Left
 	
-	print("Open Main Hub Function Here")
-	-- Put code here to open the main window if you have one
-end)
+	-- Indent fix
+	local Indent = Instance.new("UIPadding")
+	Indent.Parent = Btn
+	Indent.PaddingLeft = UDim.new(0, 20)
 
--- 7. SLIDE DOWN INTRO
-function PlayIntro()
-	-- Wait a moment for game to load
-	task.wait(1)
+	-- Hover Effect
+	Btn.MouseEnter:Connect(function()
+		TweenService:Create(Btn, TweenInfo.new(0.2), {TextColor3 = Settings.ThemeColor}):Play()
+	end)
+	Btn.MouseLeave:Connect(function()
+		TweenService:Create(Btn, TweenInfo.new(0.2), {TextColor3 = Settings.TextDim}):Play()
+	end)
 	
-	-- Sound Effect (Optional, subtle pop)
-	local sound = Instance.new("Sound")
-	sound.Parent = TopBar
-	sound.SoundId = "rbxassetid://6895079853" -- UI Open Sound
-	sound.Volume = 0.5
-	sound.PlayOnRemove = true
-	sound:Destroy()
-
-	-- The Slide Animation
-	-- EasingStyle.Exponential makes it start fast and slow down smoothly
-	local SlideInfo = TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-	
-	-- Target Position: Top Center (Y = 15 pixels padding from top)
-	local TargetPos = UDim2.new(0.5, -(Settings.BarWidth/2), 0, 15)
-	
-	local Tween = TweenService:Create(TopBar, SlideInfo, {Position = TargetPos})
-	Tween:Play()
+	return Btn
 end
 
+-- Create Sidebar Tabs (Visual Only for this demo)
+CreateTab("Home", "")
+CreateTab("Main", "")
+CreateTab("Settings", "")
+CreateTab("Teleports", "")
+CreateTab("Devil Fruit", "")
+CreateTab("Stats", "")
+CreateTab("Credits", "")
+
+-- POPULATE HOME TAB (Like the reference screenshot)
+local function CreateStatLine(label, text, order)
+	local Lbl = Instance.new("TextLabel")
+	Lbl.Parent = ContentArea
+	Lbl.BackgroundTransparency = 1
+	Lbl.Size = UDim2.new(1, 0, 0, 25)
+	Lbl.Position = UDim2.new(0, 0, 0, (order * 30) + 20)
+	Lbl.Text = label .. ": "
+	Lbl.TextColor3 = Settings.TextDim
+	Lbl.Font = Enum.Font.GothamBold
+	Lbl.TextSize = 14
+	Lbl.TextXAlignment = Enum.TextXAlignment.Left
+	
+	local Val = Instance.new("TextLabel")
+	Val.Parent = Lbl
+	Val.BackgroundTransparency = 1
+	Val.Size = UDim2.new(1, 0, 1, 0)
+	Val.Position = UDim2.new(0, 120, 0, 0) -- Offset
+	Val.Text = text
+	Val.TextColor3 = Settings.TextColor
+	Val.Font = Enum.Font.Gotham
+	Val.TextSize = 14
+	Val.TextXAlignment = Enum.TextXAlignment.Left
+	
+	return Val
+end
+
+local GameName = CreateStatLine("Game", "Blox Fruits | English", 0)
+local TimeStat = CreateStatLine("Time", "00:00:00", 2)
+local NameStat = CreateStatLine("Name", LocalPlayer.Name, 3)
+local FPSStat  = CreateStatLine("FPS", "60", 4)
+local PingStat = CreateStatLine("Ping", "0 ms", 5)
+
+-- Stat Updater
+task.spawn(function()
+	while ScreenGui.Parent do
+		local date = os.date("!*t")
+		TimeStat.Text = string.format("%02d:%02d:%02d", date.hour, date.min, date.sec)
+		PingStat.Text = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValueString():split(" ")[1]) .. " ms"
+		FPSStat.Text = math.floor(workspace:GetRealPhysicsFPS())
+		task.wait(1)
+	end
+end)
+
+
+-- ============================================================================
+--    PART D: SLIDE ANIMATION LOGIC
+-- ============================================================================
+
+local function OpenHub()
+	-- 1. Slide Top Bar UP (Hidden)
+	TweenService:Create(TopBar, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, -160, 0, -100)
+	}):Play()
+	
+	task.wait(0.2)
+	
+	-- 2. Slide Main Hub UP (Visible)
+	MainContainer.Visible = true
+	TweenService:Create(MainContainer, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, -325, 0.5, -190) -- Center Screen
+	}):Play()
+end
+
+local function CloseHub()
+	-- 1. Slide Main Hub DOWN (Hidden)
+	TweenService:Create(MainContainer, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+		Position = UDim2.new(0.5, -325, 1.5, 0) -- Below Screen
+	}):Play()
+	
+	task.wait(0.3)
+	
+	-- 2. Slide Top Bar DOWN (Visible)
+	TweenService:Create(TopBar, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, -160, 0, 15) -- Standard Top Position
+	}):Play()
+end
+
+local function PlayIntro()
+	-- Initial Slide Down
+	task.wait(1)
+	TweenService:Create(TopBar, TweenInfo.new(1, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, -160, 0, 15)
+	}):Play()
+end
+
+-- Connect Buttons
+OpenBtn.MouseButton1Click:Connect(OpenHub)
+CloseBtn.MouseButton1Click:Connect(CloseHub)
+
+-- Start
 PlayIntro()
