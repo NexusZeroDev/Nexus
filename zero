@@ -1,4 +1,4 @@
--- [[ NEXA HUB - BLOX FRUITS EDITION ]] --
+-- [[ NEXA HUB v3 - SMOOTH & FIXES ]] --
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -8,19 +8,17 @@ end
 -- 2. SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Lighting = game:GetService("Lighting")
-local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
 
 -- 3. SETTINGS
 local Settings = {
 	AutoFarm = false,
 	FPSBoost = false,
-	FarmDistance = 25, -- How high above the mob to stand
-	TweenSpeed = 250   -- How fast you fly (Higher = Faster)
+	FarmDistance = 14, -- Closer distance for Melee/Sword hits
+	Smoothness = 0.2   -- 0.1 is slow/smooth, 0.5 is snappy, 1 is instant
 }
 
 -- 4. GUI CREATION
@@ -31,33 +29,33 @@ ScreenGui.Parent = game.CoreGui
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.Size = UDim2.new(0, 250, 0, 250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Size = UDim2.new(0, 260, 0, 180)
 MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true -- You can drag the UI now!
+MainFrame.Draggable = true 
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 10)
 UICorner.Parent = MainFrame
 
--- Title Bar
+-- Title
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
 Title.Text = "NEXA HUB | Blox Fruits"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0) -- Orange Theme
+Title.TextColor3 = Color3.fromRGB(255, 150, 0)
 Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 18
+Title.TextSize = 20
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
 
 -- Button 1: Auto Farm
 local FarmButton = Instance.new("TextButton")
 FarmButton.Parent = MainFrame
-FarmButton.Size = UDim2.new(0, 200, 0, 40)
-FarmButton.Position = UDim2.new(0.5, -100, 0.25, 0)
-FarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+FarmButton.Size = UDim2.new(0, 220, 0, 35)
+FarmButton.Position = UDim2.new(0.5, -110, 0.3, 0)
+FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 FarmButton.Text = "Auto Farm: OFF"
 FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FarmButton.Font = Enum.Font.GothamBold
@@ -70,10 +68,10 @@ FarmCorner.Parent = FarmButton
 -- Button 2: FPS Boost
 local BoostButton = Instance.new("TextButton")
 BoostButton.Parent = MainFrame
-BoostButton.Size = UDim2.new(0, 200, 0, 40)
-BoostButton.Position = UDim2.new(0.5, -100, 0.5, 0)
-BoostButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-BoostButton.Text = "FPS/HDR Boost: OFF"
+BoostButton.Size = UDim2.new(0, 220, 0, 35)
+BoostButton.Position = UDim2.new(0.5, -110, 0.55, 0)
+BoostButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+BoostButton.Text = "FPS Boost: OFF"
 BoostButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 BoostButton.Font = Enum.Font.GothamBold
 BoostButton.TextSize = 14
@@ -95,16 +93,18 @@ StatusLabel.BackgroundTransparency = 1
 
 -- 5. FUNCTIONALITY --
 
--- Helper: Find Nearest Enemy
+-- Helper: Find Nearest Enemy (Blox Fruits Specific)
 function GetNearestEnemy()
-	local ClosestDist = math.huge
+	local ClosestDist = 2000 -- Max range to search
 	local Target = nil
 	
-	-- Look in the Enemies folder (Standard for Blox Fruits)
-	local EnemiesFolder = workspace:FindFirstChild("Enemies")
-	if not EnemiesFolder then return nil end
-
-	for _, v in pairs(EnemiesFolder:GetChildren()) do
+	-- Blox Fruits puts mobs in "Enemies" folder or Workspace
+	local PotentialTargets = {}
+	if workspace:FindFirstChild("Enemies") then
+		for _, v in pairs(workspace.Enemies:GetChildren()) do table.insert(PotentialTargets, v) end
+	end
+	
+	for _, v in pairs(PotentialTargets) do
 		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
 			local Dist = (LocalPlayer.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
 			if Dist < ClosestDist then
@@ -116,77 +116,60 @@ function GetNearestEnemy()
 	return Target
 end
 
--- Helper: Tween Movement (Smooth Fly)
-function MoveTo(TargetCFrame)
-	local Character = LocalPlayer.Character
-	if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
-	
-	local Root = Character.HumanoidRootPart
-	local Distance = (Root.Position - TargetCFrame.Position).Magnitude
-	local Time = Distance / Settings.TweenSpeed
-	
-	local TweenInfo = TweenInfo.new(Time, Enum.EasingStyle.Linear)
-	local Tween = TweenService:Create(Root, TweenInfo, {CFrame = TargetCFrame})
-	Tween:Play()
+-- Helper: Reliable Clicker
+function Attack()
+	-- Method 1: VirtualInputManager (Simulates hardware click)
+	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+	task.wait(0.05)
+	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
--- Helper: Auto Click
-function Click()
-	VirtualUser:CaptureController()
-	VirtualUser:Button1Down(Vector2.new(1280, 672))
-end
-
--- LOOP: Auto Farm Logic
+-- LOOP: Main Logic
 RunService.RenderStepped:Connect(function()
 	if Settings.AutoFarm then
 		local Character = LocalPlayer.Character
 		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+		local HRP = Character.HumanoidRootPart
 		
-		-- 1. Equip a Weapon (First Tool found)
+		-- 1. Equip Weapon (Combat or Sword or Fruit)
 		local Tool = Character:FindFirstChildOfClass("Tool")
 		if not Tool then
-			local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-			if BackpackTool then BackpackTool.Parent = Character end
+			-- Try to equip from backpack
+			for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+				if item:IsA("Tool") then
+					item.Parent = Character
+					break -- Equip first tool found
+				end
+			end
 		end
 
 		-- 2. Find Enemy
 		local Enemy = GetNearestEnemy()
 		if Enemy then
-			StatusLabel.Text = "Attacking: " .. Enemy.Name
+			StatusLabel.Text = "Target: " .. Enemy.Name
 			
-			-- 3. Calculate Position (Above the enemy)
-			local TargetPos = Enemy.HumanoidRootPart.CFrame * CFrame.new(0, Settings.FarmDistance, 0)
+			-- 3. Calculate "Above" Position
+			local EnemyPos = Enemy.HumanoidRootPart.Position
+			-- We create a CFrame looking DOWN at the enemy, positioned 14 studs above
+			local TargetCFrame = CFrame.new(EnemyPos + Vector3.new(0, Settings.FarmDistance, 0), EnemyPos)
 			
-			-- 4. Move there
-			MoveTo(TargetPos)
+			-- 4. SMOOTH MOVEMENT (Lerp)
+			-- If very far, teleport first to save time
+			if (HRP.Position - TargetCFrame.Position).Magnitude > 300 then
+				HRP.CFrame = TargetCFrame
+			else
+				-- If close, glide smoothly
+				HRP.CFrame = HRP.CFrame:Lerp(TargetCFrame, Settings.Smoothness)
+			end
 			
-			-- 5. Look down at enemy
-			Character.HumanoidRootPart.CFrame = CFrame.new(Character.HumanoidRootPart.Position, Enemy.HumanoidRootPart.Position)
+			-- 5. Freeze Velocity (So gravity doesn't pull you down)
+			HRP.Velocity = Vector3.new(0,0,0)
 			
 			-- 6. Attack
-			-- Try standard activation
-			if Tool then Tool:Activate() end
-			-- Try Virtual Click (Backup)
-			Click()
+			Attack()
 			
-			-- Float Logic (Prevent falling)
-			if not Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
-				local BV = Instance.new("BodyVelocity")
-				BV.Parent = Character.HumanoidRootPart
-				BV.Velocity = Vector3.new(0, 0, 0)
-				BV.MaxForce = Vector3.new(Math.huge, Math.huge, Math.huge)
-			end
 		else
-			StatusLabel.Text = "Status: Searching for mobs..."
-			-- Remove Float if no enemy
-			if Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
-				Character.HumanoidRootPart.BodyVelocity:Destroy()
-			end
-		end
-	else
-		-- Remove Float if turned off
-		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
-			LocalPlayer.Character.HumanoidRootPart.BodyVelocity:Destroy()
+			StatusLabel.Text = "Status: Searching..."
 		end
 	end
 end)
@@ -197,32 +180,41 @@ FarmButton.MouseButton1Click:Connect(function()
 	if Settings.AutoFarm then
 		FarmButton.Text = "Auto Farm: ON"
 		FarmButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+		
+		-- Add BodyVelocity to float
+		local Character = LocalPlayer.Character
+		if Character and Character:FindFirstChild("HumanoidRootPart") then
+			local BV = Instance.new("BodyVelocity")
+			BV.Name = "FlyVelocity"
+			BV.Parent = Character.HumanoidRootPart
+			BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+			BV.Velocity = Vector3.new(0,0,0)
+		end
+		
 	else
 		FarmButton.Text = "Auto Farm: OFF"
-		FarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		FarmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		StatusLabel.Text = "Status: Idle"
+		
+		-- Remove BodyVelocity
+		local Character = LocalPlayer.Character
+		if Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart:FindFirstChild("FlyVelocity") then
+			Character.HumanoidRootPart.FlyVelocity:Destroy()
+		end
 	end
 end)
 
 BoostButton.MouseButton1Click:Connect(function()
 	Settings.FPSBoost = not Settings.FPSBoost
 	if Settings.FPSBoost then
-		BoostButton.Text = "FPS/HDR Boost: ON"
+		BoostButton.Text = "FPS Boost: ON"
 		BoostButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-		
-		-- Apply Boost
 		if setfpscap then setfpscap(30) end
 		Lighting.GlobalShadows = false
-		local CC = Instance.new("ColorCorrectionEffect", Lighting)
-		CC.Name = "NexaHDR"
-		CC.Saturation = 0.5
 	else
-		BoostButton.Text = "FPS/HDR Boost: OFF"
-		BoostButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		
-		-- Remove Boost
+		BoostButton.Text = "FPS Boost: OFF"
+		BoostButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		if setfpscap then setfpscap(999) end
 		Lighting.GlobalShadows = true
-		if Lighting:FindFirstChild("NexaHDR") then Lighting.NexaHDR:Destroy() end
 	end
 end)
