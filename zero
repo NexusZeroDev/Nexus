@@ -1,4 +1,4 @@
--- [[ NEXUS ZERO SCRIPT ]] --
+-- [[ NEXUS ZERO SCRIPT v2 - STABILITY MODE ]] --
 
 -- 1. CLEANUP PREVIOUS GUI
 if game.CoreGui:FindFirstChild("NexusFPSGUI") then
@@ -23,8 +23,8 @@ local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-mainFrame.Size = UDim2.new(0, 200, 0, 130)
-mainFrame.Position = UDim2.new(0.05, 0, 0.1, 0) -- Top Left area
+mainFrame.Size = UDim2.new(0, 200, 0, 150) -- Made slightly taller
+mainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
 mainFrame.BorderSizePixel = 0
 
 -- Rounded Corners
@@ -63,11 +63,21 @@ currentLabel.Size = UDim2.new(1, 0, 0, 20)
 currentLabel.Position = UDim2.new(0, 0, 0, 50)
 currentLabel.BackgroundTransparency = 1
 
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Parent = mainFrame
+statusLabel.Text = "Status: Default"
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 12
+statusLabel.Size = UDim2.new(1, 0, 0, 20)
+statusLabel.Position = UDim2.new(0, 0, 0, 70)
+statusLabel.BackgroundTransparency = 1
+
 -- Toggle Button
 local button = Instance.new("TextButton")
 button.Parent = mainFrame
 button.Size = UDim2.new(0, 160, 0, 35)
-button.Position = UDim2.new(0.5, -80, 0.7, 0)
+button.Position = UDim2.new(0.5, -80, 0.65, 0)
 button.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
 button.Text = "BOOST OFF"
 button.Font = Enum.Font.GothamBold
@@ -86,15 +96,23 @@ end)
 
 -- 5. FUNCTIONS
 local function ApplyBoost()
-	-- 1. Save the FPS at the moment of clicking
+	-- 1. Save FPS
 	initialFPS = currentFPS
 	beforeLabel.Text = "Before FPS: " .. initialFPS
+	statusLabel.Text = "Status: 30 FPS Cap + HDR"
 	
-	-- 2. HDR EFFECT (Color Correction)
+	-- 2. CAP FPS AT 30 (Stability)
+	if setfpscap then
+		setfpscap(30)
+	else
+		warn("Your executor does not support setfpscap!")
+	end
+	
+	-- 3. HDR EFFECT
 	local CC = Instance.new("ColorCorrectionEffect")
 	CC.Name = "NexusHDR"
-	CC.Saturation = 0.4      -- Make colors pop
-	CC.Contrast = 0.2        -- Sharpen image
+	CC.Saturation = 0.4
+	CC.Contrast = 0.2
 	CC.Parent = Lighting
 	
 	local Bloom = Instance.new("BloomEffect")
@@ -103,24 +121,29 @@ local function ApplyBoost()
 	Bloom.Size = 10
 	Bloom.Parent = Lighting
 
-	-- 3. FPS BOOST (Lower Quality)
+	-- 4. REMOVE TEXTURES / SHADOWS
 	Lighting.GlobalShadows = false
 	Lighting.FogEnd = 9e9
 	
-	-- Turn all parts into Smooth Plastic (Reduces lag significantly)
 	for _, v in pairs(workspace:GetDescendants()) do
 		if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then
 			v.Material = Enum.Material.SmoothPlastic
 			v.CastShadow = false
 		elseif v:IsA("Texture") or v:IsA("Decal") then
-			v.Transparency = 1 -- Hide textures
+			v.Transparency = 1
 		end
 	end
 end
 
 local function RemoveBoost()
-	-- It is hard to fully "undo" a texture deletion without rejoining,
-	-- but we can remove the HDR effects.
+	statusLabel.Text = "Status: Uncapped"
+	
+	-- 1. UNCAP FPS
+	if setfpscap then
+		setfpscap(999) -- Uncaps fps to max
+	end
+
+	-- 2. Remove HDR
 	if Lighting:FindFirstChild("NexusHDR") then Lighting.NexusHDR:Destroy() end
 	if Lighting:FindFirstChild("NexusBloom") then Lighting.NexusBloom:Destroy() end
 	Lighting.GlobalShadows = true
