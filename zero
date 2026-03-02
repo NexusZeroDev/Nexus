@@ -1,4 +1,4 @@
--- [[ NEXA HUB v5 - TASKBAR UI EDITION ]] --
+-- [[ NEXA HUB v5.1 - TOP BAR EDITION ]] --
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -30,16 +30,16 @@ ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = game.CoreGui
 
 -- ===========================
---    MINIMIZED BAR (The Taskbar)
+--    MINIMIZED BAR (Top Bar)
 -- ===========================
 local MiniFrame = Instance.new("Frame")
 MiniFrame.Name = "MiniFrame"
 MiniFrame.Parent = ScreenGui
 MiniFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MiniFrame.Size = UDim2.new(0, 300, 0, 50) -- Dimensions of the bar
-MiniFrame.Position = UDim2.new(0.5, -150, 0.92, 0) -- Bottom Center
+MiniFrame.Size = UDim2.new(0, 300, 0, 50) 
+MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) -- TOP CENTER (Changed from 0.92)
 MiniFrame.BorderSizePixel = 0
-MiniFrame.Visible = true -- Starts Visible
+MiniFrame.Visible = true 
 MiniFrame.Active = true
 
 local MiniCorner = Instance.new("UICorner")
