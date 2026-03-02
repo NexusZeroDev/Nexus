@@ -1,4 +1,5 @@
--- [[ NEXA HUB v5.1 - TOP BAR EDITION ]] --
+-- [[ NEXA HUB v5.2 - TOP BAR FIX ]] --
+print("LOADING NEXA HUB v5.2 (TOP BAR)...") -- Check your console (F9) for this!
 
 -- 1. CLEANUP OLD GUI
 if game.CoreGui:FindFirstChild("NexaHubUI") then
@@ -30,14 +31,15 @@ ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = game.CoreGui
 
 -- ===========================
---    MINIMIZED BAR (Top Bar)
+--    MINIMIZED BAR (TOP BAR)
 -- ===========================
 local MiniFrame = Instance.new("Frame")
 MiniFrame.Name = "MiniFrame"
 MiniFrame.Parent = ScreenGui
 MiniFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MiniFrame.Size = UDim2.new(0, 300, 0, 50) 
-MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) -- TOP CENTER (Changed from 0.92)
+-- POSITION: 0.02 is 2% from the TOP of the screen.
+MiniFrame.Position = UDim2.new(0.5, -150, 0.02, 0) 
 MiniFrame.BorderSizePixel = 0
 MiniFrame.Visible = true 
 MiniFrame.Active = true
@@ -58,17 +60,16 @@ UserIcon.Size = UDim2.new(0, 34, 0, 34)
 UserIcon.Position = UDim2.new(0, 8, 0.5, -17)
 UserIcon.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 UserIcon.BackgroundTransparency = 1
--- Get Player Headshot
 local content, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
 UserIcon.Image = content
 local IconCorner = Instance.new("UICorner")
-IconCorner.CornerRadius = UDim.new(1, 0) -- Circle
+IconCorner.CornerRadius = UDim.new(1, 0) 
 IconCorner.Parent = UserIcon
 
 -- Title Text
 local MiniTitle = Instance.new("TextLabel")
 MiniTitle.Parent = MiniFrame
-MiniTitle.Text = "Nexa Hub [Premium]"
+MiniTitle.Text = "Nexa Hub [Top Bar]"
 MiniTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 MiniTitle.TextSize = 14
 MiniTitle.Font = Enum.Font.GothamBold
@@ -95,7 +96,7 @@ MaximizeBtn.Parent = MiniFrame
 MaximizeBtn.Size = UDim2.new(0, 50, 1, 0)
 MaximizeBtn.Position = UDim2.new(1, -50, 0, 0)
 MaximizeBtn.BackgroundTransparency = 1
-MaximizeBtn.Text = "⛶" -- Square symbol
+MaximizeBtn.Text = "⛶" 
 MaximizeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 MaximizeBtn.TextSize = 24
 MaximizeBtn.Font = Enum.Font.Gotham
@@ -108,9 +109,9 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Size = UDim2.new(0, 260, 0, 220)
-MainFrame.Position = UDim2.new(0.5, -130, 0.4, 0) -- Center Screen
+MainFrame.Position = UDim2.new(0.5, -130, 0.4, 0) 
 MainFrame.BorderSizePixel = 0
-MainFrame.Visible = false -- Starts Hidden
+MainFrame.Visible = false 
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
@@ -202,8 +203,6 @@ local function ToggleUI(state)
 	if state == "Open" then
 		MiniFrame.Visible = false
 		MainFrame.Visible = true
-		
-		-- Pop-in Effect
 		MainFrame.Size = UDim2.new(0, 240, 0, 200)
 		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0, 260, 0, 220)})
 		tween:Play()
@@ -302,7 +301,6 @@ end
 local StartTime = tick()
 
 RunService.RenderStepped:Connect(function()
-	-- Timer
 	local Elapsed = tick() - StartTime
 	local TimeLeft = math.ceil(Settings.ServerHopDelay - Elapsed)
 	
@@ -314,7 +312,6 @@ RunService.RenderStepped:Connect(function()
 		TimerLabel.Text = "Server Hop in: " .. FormatTime(TimeLeft)
 	end
 	
-	-- Auto Farm
 	if Settings.AutoFarm then
 		local Character = LocalPlayer.Character
 		if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
