@@ -1,5 +1,5 @@
--- [[ NEXA HUB v4.3 - MOBILE ESP FIX ]] --
--- Features: Compact UI, SMART ESP (Fixed), Anti-Ban, Jump Ball, Split Aim
+-- [[ NEXA HUB v4.4 - ESP LEVEL & PVP UPDATE ]] --
+-- Features: Compact UI, Enhanced ESP (Lvl/PvP), Anti-Ban, Split Aim
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -27,7 +27,6 @@ local Settings = {
 local State = {
 	SpeedEnabled = false, SpeedAmt = 16,
 	JumpEnabled = false, JumpAmt = 50,
-	JumpBall = false,
 	WalkWater = false,
 	AntiStun = false,
 	HighPerf = false,
@@ -37,7 +36,7 @@ local State = {
 	AntiBan = false
 }
 
--- 3. UI CONSTRUCTION (COMPACT SIZE)
+-- 3. UI CONSTRUCTION (COMPACT MOBILE)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = CoreGui
@@ -60,12 +59,12 @@ local AC = Instance.new("UICorner"); AC.CornerRadius = UDim.new(1, 0); AC.Parent
 task.spawn(function() Avatar.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
 
 local Title = Instance.new("TextLabel"); Title.Parent = TopBar; Title.Text = "NEXA HUB"; Title.TextColor3 = Settings.Theme; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 12; Title.Size = UDim2.new(0, 150, 0, 20); Title.Position = UDim2.new(0, 42, 0.5, -10); Title.TextXAlignment = Enum.TextXAlignment.Left; Title.BackgroundTransparency = 1
-local Sub = Instance.new("TextLabel"); Sub.Parent = TopBar; Sub.Text = "v4.3 ESP Fix"; Sub.TextColor3 = Settings.Dim; Sub.Font = Enum.Font.Gotham; Sub.TextSize = 10; Sub.Size = UDim2.new(0, 150, 0, 20); Sub.Position = UDim2.new(0, 42, 0.5, 2); Sub.TextXAlignment = Enum.TextXAlignment.Left; Sub.BackgroundTransparency = 1
+local Sub = Instance.new("TextLabel"); Sub.Parent = TopBar; Sub.Text = "v4.4 ESP Update"; Sub.TextColor3 = Settings.Dim; Sub.Font = Enum.Font.Gotham; Sub.TextSize = 10; Sub.Size = UDim2.new(0, 150, 0, 20); Sub.Position = UDim2.new(0, 42, 0.5, 2); Sub.TextXAlignment = Enum.TextXAlignment.Left; Sub.BackgroundTransparency = 1
 
 local OpenBtn = Instance.new("TextButton"); OpenBtn.Parent = TopBar; OpenBtn.Size = UDim2.new(0, 26, 0, 26); OpenBtn.Position = UDim2.new(1, -34, 0.5, -13); OpenBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); OpenBtn.BackgroundTransparency = 0.5; OpenBtn.Text = "V"
 local BC = Instance.new("UICorner"); BC.CornerRadius = UDim.new(0, 6); BC.Parent = OpenBtn
 
--- [[ MAIN HUB - COMPACT MODE ]]
+-- [[ MAIN HUB ]]
 local Main = Instance.new("Frame")
 Main.Name = "MainHub"
 Main.Parent = ScreenGui
@@ -79,7 +78,6 @@ local MS = Instance.new("UIStroke"); MS.Parent = Main; MS.Color = Settings.Theme
 -- Sidebar
 local Sidebar = Instance.new("Frame"); Sidebar.Parent = Main; Sidebar.BackgroundColor3 = Settings.Sidebar; Sidebar.Size = UDim2.new(0, 110, 1, 0)
 local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(0, 8); SC.Parent = Sidebar
-local Fix = Instance.new("Frame"); Fix.Parent = Sidebar; Fix.BackgroundColor3 = Settings.Sidebar; Fix.Size = UDim2.new(0, 10, 1, 0); Fix.Position = UDim2.new(1, -10, 0, 0); Fix.BorderSizePixel = 0
 
 local TabHolder = Instance.new("ScrollingFrame"); TabHolder.Parent = Sidebar; TabHolder.Size = UDim2.new(1, 0, 1, -10); TabHolder.Position = UDim2.new(0, 0, 0, 10); TabHolder.BackgroundTransparency = 1; TabHolder.BorderSizePixel = 0; TabHolder.ScrollBarThickness = 0
 local TabList = Instance.new("UIListLayout"); TabList.Parent = TabHolder; TabList.SortOrder = Enum.SortOrder.LayoutOrder; TabList.Padding = UDim.new(0, 5)
@@ -88,7 +86,7 @@ local TabList = Instance.new("UIListLayout"); TabList.Parent = TabHolder; TabLis
 local Content = Instance.new("Frame"); Content.Parent = Main; Content.BackgroundTransparency = 1; Content.Size = UDim2.new(1, -120, 1, -10); Content.Position = UDim2.new(0, 120, 0, 5)
 local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = Main; CloseBtn.Text = "-"; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 20; CloseBtn.TextColor3 = Settings.Dim; CloseBtn.BackgroundTransparency = 1; CloseBtn.Size = UDim2.new(0, 25, 0, 25); CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 
--- 4. ESP LOGIC (THE FIX)
+-- 4. ESP LOGIC (UPDATED)
 local function RemoveESP()
 	for _, v in pairs(workspace:GetDescendants()) do
 		if v.Name == "NexaESP" or v.Name == "NexaInfo" then v:Destroy() end
@@ -101,24 +99,24 @@ local function DrawESP(player)
 	local HRP = Char:FindFirstChild("HumanoidRootPart")
 	if not HRP then return end
 	
-	if Char:FindFirstChild("NexaESP") then return end -- Already has ESP
+	if Char:FindFirstChild("NexaESP") then return end 
 	
-	-- 1. Determine Faction & Color
-	local TeamColor = Color3.fromRGB(200, 200, 200) -- Default Grey
+	-- Faction Logic
+	local TeamColor = Color3.fromRGB(200, 200, 200) 
 	local FactionText = "Civilian"
 	
 	if player.Team then
 		local tName = string.lower(player.Team.Name)
 		if string.find(tName, "pirate") then
-			TeamColor = Color3.fromRGB(255, 60, 60) -- RED
+			TeamColor = Color3.fromRGB(255, 60, 60)
 			FactionText = "Pirate"
 		elseif string.find(tName, "marine") then
-			TeamColor = Color3.fromRGB(60, 120, 255) -- BLUE
+			TeamColor = Color3.fromRGB(60, 120, 255)
 			FactionText = "Marine"
 		end
 	end
 	
-	-- 2. Highlights (Chams)
+	-- Highlight
 	local HL = Instance.new("Highlight")
 	HL.Name = "NexaESP"
 	HL.Parent = Char
@@ -127,12 +125,12 @@ local function DrawESP(player)
 	HL.FillTransparency = 0.5
 	HL.OutlineTransparency = 0
 	
-	-- 3. Billboard Info
+	-- Billboard
 	local BG = Instance.new("BillboardGui")
 	BG.Name = "NexaInfo"
 	BG.Parent = HRP
-	BG.Size = UDim2.new(0, 200, 0, 50)
-	BG.StudsOffset = Vector3.new(0, 4, 0) -- Above Head
+	BG.Size = UDim2.new(0, 250, 0, 60)
+	BG.StudsOffset = Vector3.new(0, 4.5, 0)
 	BG.AlwaysOnTop = true
 	
 	local Info = Instance.new("TextLabel")
@@ -143,11 +141,9 @@ local function DrawESP(player)
 	Info.Font = Enum.Font.GothamBold
 	Info.TextSize = 11
 	Info.TextColor3 = TeamColor
-	Info.TextStrokeTransparency = 0
-	Info.TextStrokeColor3 = Color3.new(0,0,0)
+	Info.TextStrokeTransparency = 0.5
 	Info.Text = "Loading..."
 	
-	-- Save Faction as attribute for update loop
 	BG:SetAttribute("Faction", FactionText)
 end
 
@@ -182,39 +178,6 @@ local function ServerHop()
 		end
 	end
 	pcall(function() TPReturner() end)
-end
-
--- Jump Ball
-local BallPart = nil
-local function UpdateJumpBall()
-	if State.JumpBall then
-		if not BallPart then
-			BallPart = Instance.new("Part")
-			BallPart.Name = "NexaJumpBall"
-			BallPart.Shape = Enum.PartType.Ball
-			BallPart.Size = Vector3.new(4,4,4)
-			BallPart.Material = Enum.Material.Neon
-			BallPart.Color = Settings.Theme
-			BallPart.Parent = workspace
-			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-				BallPart.Position = LocalPlayer.Character.HumanoidRootPart.Position + Vector3.new(5, 5, 0)
-			end
-			BallPart.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5, 1, 1)
-			BallPart.Touched:Connect(function(hit)
-				if hit.Parent == LocalPlayer.Character then
-					local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-					if Hum then
-						Hum.JumpPower = 300
-						Hum.Jump = true
-						task.wait(0.5)
-						Hum.JumpPower = State.JumpAmt
-					end
-				end
-			end)
-		end
-	else
-		if BallPart then BallPart:Destroy(); BallPart = nil end
-	end
 end
 
 -- Anti-Ban Logic
@@ -282,28 +245,45 @@ RunService.RenderStepped:Connect(function()
 		if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
 	end
 	
-	-- ESP UPDATE LOOP (FIXED)
+	-- ESP UPDATE LOOP (WITH LEVEL & PVP)
 	if State.ESP then
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= LocalPlayer then
-				-- 1. Draw if missing
-				if p.Character and not p.Character:FindFirstChild("NexaESP") then
-					DrawESP(p)
-				end
+				-- Draw
+				if p.Character and not p.Character:FindFirstChild("NexaESP") then DrawESP(p) end
 				
-				-- 2. Update Text info
+				-- Update
 				if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
 					local HRP = p.Character.HumanoidRootPart
 					local BG = HRP:FindFirstChild("NexaInfo")
 					local pHum = p.Character:FindFirstChild("Humanoid")
 					
 					if BG and BG:FindFirstChild("InfoText") and pHum and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-						local MyPos = LocalPlayer.Character.HumanoidRootPart.Position
-						local Dist = math.floor((MyPos - HRP.Position).Magnitude)
+						local Dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - HRP.Position).Magnitude)
 						local HP = math.floor((pHum.Health / pHum.MaxHealth) * 100)
 						local Fac = BG:GetAttribute("Faction") or "Player"
 						
-						BG.InfoText.Text = string.format("[%s] %s\nHP: %d%% | Dist: %dm", Fac, p.Name, HP, Dist)
+						-- GET LEVEL
+						local Level = "?"
+						if p:FindFirstChild("Data") and p.Data:FindFirstChild("Level") then
+							Level = tostring(p.Data.Level.Value)
+						end
+						
+						-- GET PVP STATUS (ForceField Logic)
+						local PvPStatus = "ON"
+						if p.Character:FindFirstChildOfClass("ForceField") then
+							PvPStatus = "OFF"
+						end
+						
+						-- FINAL TEXT
+						BG.InfoText.Text = string.format("[%s] %s [Lvl: %s]\nPvP: %s | HP: %d%% | Dist: %dm", Fac, p.Name, Level, PvPStatus, HP, Dist)
+						
+						-- Color Logic for PvP
+						if PvPStatus == "ON" then
+							BG.InfoText.TextColor3 = Color3.fromRGB(255, 50, 50) -- Red alert if PvP ON
+						else
+							BG.InfoText.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green safe if PvP OFF
+						end
 					end
 				end
 			end
@@ -344,13 +324,12 @@ local function LoadTab(name)
 		AddToggle("Speed Boost", State.SpeedEnabled, function(v) State.SpeedEnabled = v end)
 		AddInput("Speed Amount", State.SpeedAmt, function(v) State.SpeedAmt = v end)
 		AddToggle("Jump Boost", State.JumpEnabled, function(v) State.JumpEnabled = v end)
-		AddToggle("Spawn Jump Ball", State.JumpBall, function(v) State.JumpBall = v; UpdateJumpBall() end)
 		AddToggle("Walk on Water", State.WalkWater, function(v) State.WalkWater = v end)
 		
 	elseif name == "Combat" then
 		AddToggle("Aim: Players", State.AimPlayers, function(v) State.AimPlayers = v; if v then State.AimMobs = false end end)
 		AddToggle("Aim: Mobs", State.AimMobs, function(v) State.AimMobs = v; if v then State.AimPlayers = false end end)
-		AddToggle("Smart ESP (Dist/HP/Team)", State.ESP, function(v) State.ESP = v end)
+		AddToggle("Smart ESP (Lvl/PvP/HP)", State.ESP, function(v) State.ESP = v end)
 		AddToggle("Anti-Stun (Fixed)", State.AntiStun, function(v) State.AntiStun = v end)
 		
 	elseif name == "Perf." then
