@@ -1,18 +1,16 @@
--- [[ NEXA HUB v4.5 - SILENT AIM & DROPDOWNS ]] --
--- Features: Compact UI, Expandable Settings, Silent Aim, ESP (Lvl/PvP), Anti-Ban
+-- [[ NEXA HUB v4.4 - ESP LEVEL & PVP UPDATE ]] --
+-- Features: Compact UI, Enhanced ESP (Lvl/PvP), Anti-Ban, Split Aim
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
-local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
 local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 
 -- 1. CLEANUP
 if CoreGui:FindFirstChild("NexaHubUI") then CoreGui.NexaHubUI:Destroy() end
@@ -24,7 +22,6 @@ local Settings = {
 	Sidebar = Color3.fromRGB(18, 18, 18),
 	Text = Color3.fromRGB(255, 255, 255),
 	Dim = Color3.fromRGB(160, 160, 160),
-	FOV = 150 -- Field of view for Silent Aim
 }
 
 local State = {
@@ -34,16 +31,12 @@ local State = {
 	AntiStun = false,
 	HighPerf = false,
 	SafeMode = false, SafeHP = 10000,
+	AimPlayers = false, AimMobs = false,
 	ESP = false,
-	AntiBan = false,
-	
-	-- Silent Aim State
-	SilentAim = false,
-	SilentPlayers = false,
-	SilentMobs = false
+	AntiBan = false
 }
 
--- 3. UI CONSTRUCTION
+-- 3. UI CONSTRUCTION (COMPACT MOBILE)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NexaHubUI"
 ScreenGui.Parent = CoreGui
@@ -66,7 +59,7 @@ local AC = Instance.new("UICorner"); AC.CornerRadius = UDim.new(1, 0); AC.Parent
 task.spawn(function() Avatar.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
 
 local Title = Instance.new("TextLabel"); Title.Parent = TopBar; Title.Text = "NEXA HUB"; Title.TextColor3 = Settings.Theme; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 12; Title.Size = UDim2.new(0, 150, 0, 20); Title.Position = UDim2.new(0, 42, 0.5, -10); Title.TextXAlignment = Enum.TextXAlignment.Left; Title.BackgroundTransparency = 1
-local Sub = Instance.new("TextLabel"); Sub.Parent = TopBar; Sub.Text = "v4.5 Silent Aim"; Sub.TextColor3 = Settings.Dim; Sub.Font = Enum.Font.Gotham; Sub.TextSize = 10; Sub.Size = UDim2.new(0, 150, 0, 20); Sub.Position = UDim2.new(0, 42, 0.5, 2); Sub.TextXAlignment = Enum.TextXAlignment.Left; Sub.BackgroundTransparency = 1
+local Sub = Instance.new("TextLabel"); Sub.Parent = TopBar; Sub.Text = "v4.4 ESP Update"; Sub.TextColor3 = Settings.Dim; Sub.Font = Enum.Font.Gotham; Sub.TextSize = 10; Sub.Size = UDim2.new(0, 150, 0, 20); Sub.Position = UDim2.new(0, 42, 0.5, 2); Sub.TextXAlignment = Enum.TextXAlignment.Left; Sub.BackgroundTransparency = 1
 
 local OpenBtn = Instance.new("TextButton"); OpenBtn.Parent = TopBar; OpenBtn.Size = UDim2.new(0, 26, 0, 26); OpenBtn.Position = UDim2.new(1, -34, 0.5, -13); OpenBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); OpenBtn.BackgroundTransparency = 0.5; OpenBtn.Text = "V"
 local BC = Instance.new("UICorner"); BC.CornerRadius = UDim.new(0, 6); BC.Parent = OpenBtn
@@ -93,78 +86,127 @@ local TabList = Instance.new("UIListLayout"); TabList.Parent = TabHolder; TabLis
 local Content = Instance.new("Frame"); Content.Parent = Main; Content.BackgroundTransparency = 1; Content.Size = UDim2.new(1, -120, 1, -10); Content.Position = UDim2.new(0, 120, 0, 5)
 local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = Main; CloseBtn.Text = "-"; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 20; CloseBtn.TextColor3 = Settings.Dim; CloseBtn.BackgroundTransparency = 1; CloseBtn.Size = UDim2.new(0, 25, 0, 25); CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 
--- 4. UTILS
+-- 4. ESP LOGIC (UPDATED)
+local function RemoveESP()
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v.Name == "NexaESP" or v.Name == "NexaInfo" then v:Destroy() end
+	end
+end
+
+local function DrawESP(player)
+	if not player.Character then return end
+	local Char = player.Character
+	local HRP = Char:FindFirstChild("HumanoidRootPart")
+	if not HRP then return end
+	
+	if Char:FindFirstChild("NexaESP") then return end 
+	
+	-- Faction Logic
+	local TeamColor = Color3.fromRGB(200, 200, 200) 
+	local FactionText = "Civilian"
+	
+	if player.Team then
+		local tName = string.lower(player.Team.Name)
+		if string.find(tName, "pirate") then
+			TeamColor = Color3.fromRGB(255, 60, 60)
+			FactionText = "Pirate"
+		elseif string.find(tName, "marine") then
+			TeamColor = Color3.fromRGB(60, 120, 255)
+			FactionText = "Marine"
+		end
+	end
+	
+	-- Highlight
+	local HL = Instance.new("Highlight")
+	HL.Name = "NexaESP"
+	HL.Parent = Char
+	HL.FillColor = TeamColor
+	HL.OutlineColor = Color3.new(1,1,1)
+	HL.FillTransparency = 0.5
+	HL.OutlineTransparency = 0
+	
+	-- Billboard
+	local BG = Instance.new("BillboardGui")
+	BG.Name = "NexaInfo"
+	BG.Parent = HRP
+	BG.Size = UDim2.new(0, 250, 0, 60)
+	BG.StudsOffset = Vector3.new(0, 4.5, 0)
+	BG.AlwaysOnTop = true
+	
+	local Info = Instance.new("TextLabel")
+	Info.Name = "InfoText"
+	Info.Parent = BG
+	Info.Size = UDim2.new(1, 0, 1, 0)
+	Info.BackgroundTransparency = 1
+	Info.Font = Enum.Font.GothamBold
+	Info.TextSize = 11
+	Info.TextColor3 = TeamColor
+	Info.TextStrokeTransparency = 0.5
+	Info.Text = "Loading..."
+	
+	BG:SetAttribute("Faction", FactionText)
+end
+
+-- 5. FUNCTIONALITY HANDLERS
+
 local function Notify(msg)
 	StarterGui:SetCore("SendNotification", {Title = "NEXA SECURITY", Text = msg, Duration = 5})
 end
 
-local function GetClosestTarget()
-	local Closest = nil
-	local MaxDist = Settings.FOV
-	local MousePos = Vector2.new(Mouse.X, Mouse.Y)
-
-	local Candidates = {}
-
-	-- Collect Players
-	if State.SilentPlayers then
-		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-				table.insert(Candidates, p.Character)
-			end
+local function ServerHop()
+	local PlaceID = game.PlaceId
+	local AllIDs = {}
+	local foundAnything = ""
+	local function TPReturner()
+		local Site;
+		if foundAnything == "" then
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
+		else
+			Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
 		end
-	end
-
-	-- Collect Mobs
-	if State.SilentMobs then
-		local Mobs = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
-		for _, m in pairs(Mobs:GetChildren()) do
-			if m:FindFirstChild("Humanoid") and m:FindFirstChild("HumanoidRootPart") and m.Humanoid.Health > 0 then
-				table.insert(Candidates, m)
-			end
-		end
-	end
-
-	-- Calculate closest to Mouse
-	for _, target in pairs(Candidates) do
-		local HRP = target:FindFirstChild("HumanoidRootPart")
-		if HRP then
-			local ScreenPos, OnScreen = Camera:WorldToViewportPoint(HRP.Position)
-			if OnScreen then
-				local Dist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - MousePos).Magnitude
-				if Dist < MaxDist then
-					MaxDist = Dist
-					Closest = HRP
+		if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then foundAnything = Site.nextPageCursor end
+		for i,v in pairs(Site.data) do
+			local Possible = true
+			if tonumber(v.maxPlayers) > tonumber(v.playing) then
+				for _,Existing in pairs(AllIDs) do if tostring(v.id) == tostring(Existing) then Possible = false end end
+				if Possible == true then
+					table.insert(AllIDs, tostring(v.id))
+					TeleportService:TeleportToPlaceInstance(PlaceID, tostring(v.id), LocalPlayer)
+					wait(4)
 				end
 			end
 		end
 	end
-	
-	return Closest
+	pcall(function() TPReturner() end)
 end
 
--- 5. RUNTIME LOOPS
+-- Anti-Ban Logic
+local JoinTime = tick()
+local Warned25, Warned28 = false, false
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if State.AntiBan then
+			local Elapsed = tick() - JoinTime
+			if Elapsed >= 1500 and not Warned25 then Notify("Security: Server Hop in 5 mins"); Warned25 = true end
+			if Elapsed >= 1680 and not Warned28 then Notify("Security: Server Hop in 2 mins"); Warned28 = true end
+			if Elapsed >= 1800 then Notify("Security: Hopping Now..."); ServerHop() end
+		end
+	end
+end)
+
+-- 6. RUNTIME LOOPS
 RunService.RenderStepped:Connect(function()
 	local Char = LocalPlayer.Character
 	if not Char then return end
 	local Hum = Char:FindFirstChild("Humanoid")
 	local HRP = Char:FindFirstChild("HumanoidRootPart")
 	
-	-- [Silent Aim Logic]
-	if State.SilentAim and (State.SilentPlayers or State.SilentMobs) then
-		local Target = GetClosestTarget()
-		if Target then
-			-- If mouse clicked, force camera/hit
-			if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-				Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position)
-			end
-		end
-	end
-
-	-- [Movement]
+	-- Movement
 	if Hum and State.SpeedEnabled then Hum.WalkSpeed = State.SpeedAmt end
 	if Hum and State.JumpEnabled then Hum.JumpPower = State.JumpAmt end
 	
-	-- [Water Walk]
+	-- Water Walk
 	if HRP and State.WalkWater then
 		local P = workspace:FindFirstChild("NexaPlat") or Instance.new("Part"); P.Name="NexaPlat"; P.Parent=workspace; P.Anchored=true; P.Transparency=1; P.Size=Vector3.new(15,1,15); P.CanCollide=true
 		P.CFrame = CFrame.new(HRP.Position.X, -3.5, HRP.Position.Z)
@@ -172,66 +214,99 @@ RunService.RenderStepped:Connect(function()
 		if workspace:FindFirstChild("NexaPlat") then workspace.NexaPlat:Destroy() end
 	end
 	
-	-- [Anti Stun]
+	-- Anti Stun
 	if Hum and State.AntiStun then
 		Hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 		Hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-		Hum.PlatformStand = false; Hum.Sit = false
+		Hum.PlatformStand = false
+		Hum.Sit = false
+	end
+	
+	-- Aim Logic
+	if (State.AimPlayers or State.AimMobs) and HRP then
+		local Target, Dist = nil, 9999
+		if State.AimPlayers then
+			for _, v in pairs(Players:GetPlayers()) do
+				if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+					local d = (v.Character.HumanoidRootPart.Position - HRP.Position).Magnitude
+					if d < Dist then Dist = d; Target = v.Character.HumanoidRootPart end
+				end
+			end
+		end
+		if State.AimMobs then
+			local Mobs = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace
+			for _, v in pairs(Mobs:GetChildren()) do
+				if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+					local d = (v.HumanoidRootPart.Position - HRP.Position).Magnitude
+					if d < Dist then Dist = d; Target = v.HumanoidRootPart end
+				end
+			end
+		end
+		if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
+	end
+	
+	-- ESP UPDATE LOOP (WITH LEVEL & PVP)
+	if State.ESP then
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then
+				-- Draw
+				if p.Character and not p.Character:FindFirstChild("NexaESP") then DrawESP(p) end
+				
+				-- Update
+				if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+					local HRP = p.Character.HumanoidRootPart
+					local BG = HRP:FindFirstChild("NexaInfo")
+					local pHum = p.Character:FindFirstChild("Humanoid")
+					
+					if BG and BG:FindFirstChild("InfoText") and pHum and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+						local Dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - HRP.Position).Magnitude)
+						local HP = math.floor((pHum.Health / pHum.MaxHealth) * 100)
+						local Fac = BG:GetAttribute("Faction") or "Player"
+						
+						-- GET LEVEL
+						local Level = "?"
+						if p:FindFirstChild("Data") and p.Data:FindFirstChild("Level") then
+							Level = tostring(p.Data.Level.Value)
+						end
+						
+						-- GET PVP STATUS (ForceField Logic)
+						local PvPStatus = "ON"
+						if p.Character:FindFirstChildOfClass("ForceField") then
+							PvPStatus = "OFF"
+						end
+						
+						-- FINAL TEXT
+						BG.InfoText.Text = string.format("[%s] %s [Lvl: %s]\nPvP: %s | HP: %d%% | Dist: %dm", Fac, p.Name, Level, PvPStatus, HP, Dist)
+						
+						-- Color Logic for PvP
+						if PvPStatus == "ON" then
+							BG.InfoText.TextColor3 = Color3.fromRGB(255, 50, 50) -- Red alert if PvP ON
+						else
+							BG.InfoText.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green safe if PvP OFF
+						end
+					end
+				end
+			end
+		end
+	else
+		RemoveESP()
 	end
 end)
 
--- 6. UI ELEMENTS (EXPANDABLE)
-local function ClearContent() for _, v in pairs(Content:GetChildren()) do if v:IsA("Frame") or v:IsA("UIListLayout") then v:Destroy() end end end
+-- 7. TAB GENERATOR
+local function ClearContent() for _, v in pairs(Content:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end end
 
-local function AddToggle(parent, text, val, cb, isSub)
-	local H = isSub and 30 or 35
-	local F = Instance.new("Frame"); F.Parent = parent; F.BackgroundColor3 = isSub and Color3.fromRGB(25,25,25) or Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,H); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
-	local L = Instance.new("TextLabel"); L.Parent=F; L.Text=text; L.TextColor3=Settings.Text; L.Size=UDim2.new(0.7,0,1,0); L.Position=UDim2.new(0, isSub and 20 or 10,0,0); L.BackgroundTransparency=1; L.TextXAlignment=Enum.TextXAlignment.Left; L.Font=Enum.Font.GothamMedium; L.TextSize=12
+local function AddToggle(text, val, cb)
+	local F = Instance.new("Frame"); F.Parent = Content; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
+	local L = Instance.new("TextLabel"); L.Parent=F; L.Text=text; L.TextColor3=Settings.Text; L.Size=UDim2.new(0.7,0,1,0); L.Position=UDim2.new(0,10,0,0); L.BackgroundTransparency=1; L.TextXAlignment=Enum.TextXAlignment.Left; L.Font=Enum.Font.GothamMedium; L.TextSize=12
 	local B = Instance.new("TextButton"); B.Parent=F; B.Size=UDim2.new(0,20,0,20); B.Position=UDim2.new(1,-30,0.5,-10); B.BackgroundColor3 = val and Settings.Theme or Color3.fromRGB(50,50,50); B.Text=""; local BC=Instance.new("UICorner"); BC.Parent=B; BC.CornerRadius=UDim.new(0,4)
 	B.MouseButton1Click:Connect(function() val = not val; B.BackgroundColor3 = val and Settings.Theme or Color3.fromRGB(50,50,50); cb(val) end)
 end
 
-local function AddDropdown(mainText, mainVal, mainCb, subOptions)
-	-- Container for the whole dropdown
-	local Container = Instance.new("Frame")
-	Container.Parent = Content
-	Container.BackgroundTransparency = 1
-	Container.Size = UDim2.new(1, 0, 0, 35) -- Start small
-	Container.ClipsDescendants = true
-	
-	-- Main Toggle Frame
-	local F = Instance.new("Frame"); F.Parent = Container; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
-	local L = Instance.new("TextLabel"); L.Parent=F; L.Text=mainText; L.TextColor3=Settings.Text; L.Size=UDim2.new(0.6,0,1,0); L.Position=UDim2.new(0,10,0,0); L.BackgroundTransparency=1; L.TextXAlignment=Enum.TextXAlignment.Left; L.Font=Enum.Font.GothamBold; L.TextSize=12
-	
-	-- Expand Button
-	local Expand = Instance.new("TextButton"); Expand.Parent=F; Expand.Size=UDim2.new(0,25,0,25); Expand.Position=UDim2.new(1,-60,0.5,-12.5); Expand.BackgroundTransparency=1; Expand.Text=">"; Expand.TextColor3=Settings.Dim; Expand.Font=Enum.Font.GothamBold
-	
-	-- Main Toggle Button
-	local B = Instance.new("TextButton"); B.Parent=F; B.Size=UDim2.new(0,20,0,20); B.Position=UDim2.new(1,-30,0.5,-10); B.BackgroundColor3 = mainVal and Settings.Theme or Color3.fromRGB(50,50,50); B.Text=""; local BC=Instance.new("UICorner"); BC.Parent=B; BC.CornerRadius=UDim.new(0,4)
-	B.MouseButton1Click:Connect(function() mainVal = not mainVal; B.BackgroundColor3 = mainVal and Settings.Theme or Color3.fromRGB(50,50,50); mainCb(mainVal) end)
-	
-	-- Sub Option Container
-	local SubContainer = Instance.new("Frame"); SubContainer.Parent = Container; SubContainer.BackgroundTransparency=1; SubContainer.Size=UDim2.new(1,0,0,0); SubContainer.Position=UDim2.new(0,0,0,40)
-	local SL = Instance.new("UIListLayout"); SL.Parent=SubContainer; SL.Padding=UDim.new(0,5)
-	
-	-- Create Sub Options
-	for _, opt in pairs(subOptions) do
-		AddToggle(SubContainer, opt.Text, opt.Val, opt.Callback, true)
-	end
-	
-	-- Expand Logic
-	local Expanded = false
-	Expand.MouseButton1Click:Connect(function()
-		Expanded = not Expanded
-		Expand.Rotation = Expanded and 90 or 0
-		if Expanded then
-			local count = #subOptions
-			local height = (count * 35) + 40
-			Container.Size = UDim2.new(1, 0, 0, height)
-		else
-			Container.Size = UDim2.new(1, 0, 0, 35)
-		end
-	end)
+local function AddButton(text, cb)
+	local F = Instance.new("Frame"); F.Parent = Content; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
+	local B = Instance.new("TextButton"); B.Parent=F; B.Size=UDim2.new(1,0,1,0); B.BackgroundTransparency=1; B.Text=text; B.TextColor3=Settings.Text; B.Font=Enum.Font.GothamBold; B.TextSize=12
+	B.MouseButton1Click:Connect(cb)
 end
 
 local function AddInput(text, default, cb)
@@ -241,51 +316,35 @@ local function AddInput(text, default, cb)
 	B.FocusLost:Connect(function() cb(tonumber(B.Text) or default) end)
 end
 
-local function AddButton(text, cb)
-	local F = Instance.new("Frame"); F.Parent = Content; F.BackgroundColor3 = Color3.fromRGB(30,30,30); F.Size = UDim2.new(1,0,0,35); local C=Instance.new("UICorner"); C.Parent=F; C.CornerRadius=UDim.new(0,6)
-	local B = Instance.new("TextButton"); B.Parent=F; B.Size=UDim2.new(1,0,1,0); B.BackgroundTransparency=1; B.Text=text; B.TextColor3=Settings.Text; B.Font=Enum.Font.GothamBold; B.TextSize=12
-	B.MouseButton1Click:Connect(cb)
-end
-
--- 7. TAB LOADING
 local function LoadTab(name)
 	ClearContent()
 	local L = Instance.new("UIListLayout"); L.Parent=Content; L.Padding=UDim.new(0,5); L.SortOrder=Enum.SortOrder.LayoutOrder
 
 	if name == "Main" then
-		AddToggle(Content, "Speed Boost", State.SpeedEnabled, function(v) State.SpeedEnabled = v end)
+		AddToggle("Speed Boost", State.SpeedEnabled, function(v) State.SpeedEnabled = v end)
 		AddInput("Speed Amount", State.SpeedAmt, function(v) State.SpeedAmt = v end)
-		AddToggle(Content, "Jump Boost", State.JumpEnabled, function(v) State.JumpEnabled = v end)
-		AddToggle(Content, "Walk on Water", State.WalkWater, function(v) State.WalkWater = v end)
+		AddToggle("Jump Boost", State.JumpEnabled, function(v) State.JumpEnabled = v end)
+		AddToggle("Walk on Water", State.WalkWater, function(v) State.WalkWater = v end)
 		
 	elseif name == "Combat" then
-		
-		-- [[ NEW DROPDOWN: SILENT AIM ]]
-		AddDropdown("Silent Aim", State.SilentAim, function(v) State.SilentAim = v end, {
-			{ Text = "Target Players", Val = State.SilentPlayers, Callback = function(v) State.SilentPlayers = v end },
-			{ Text = "Target Mobs", Val = State.SilentMobs, Callback = function(v) State.SilentMobs = v end }
-		})
-		
-		AddToggle(Content, "Smart ESP (Lvl/PvP)", State.ESP, function(v) State.ESP = v; if not v then RemoveESP() end end)
-		AddToggle(Content, "Anti-Stun (Fixed)", State.AntiStun, function(v) State.AntiStun = v end)
+		AddToggle("Aim: Players", State.AimPlayers, function(v) State.AimPlayers = v; if v then State.AimMobs = false end end)
+		AddToggle("Aim: Mobs", State.AimMobs, function(v) State.AimMobs = v; if v then State.AimPlayers = false end end)
+		AddToggle("Smart ESP (Lvl/PvP/HP)", State.ESP, function(v) State.ESP = v end)
+		AddToggle("Anti-Stun (Fixed)", State.AntiStun, function(v) State.AntiStun = v end)
 		
 	elseif name == "Perf." then
-		local function ServerHop()
-			local PlaceID = game.PlaceId; local AllIDs = {}; local foundAnything = ""
-			local function TPReturner()
-				local Site; if foundAnything == "" then Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100')) else Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything)) end
-				if Site.nextPageCursor and Site.nextPageCursor ~= "null" then foundAnything = Site.nextPageCursor end
-				for i,v in pairs(Site.data) do if tonumber(v.maxPlayers) > tonumber(v.playing) then TeleportService:TeleportToPlaceInstance(PlaceID, tostring(v.id), LocalPlayer); wait(4) end end
-			end
-			pcall(function() TPReturner() end)
-		end
-
 		AddButton("Find Best Ping Server", function() ServerHop() end)
-		AddToggle(Content, "Anti-Ban (30m Hop)", State.AntiBan, function(v) State.AntiBan = v; if v then Notify("Security Active") end end)
-		AddToggle(Content, "High Performance", State.HighPerf, function(v)
+		AddToggle("Anti-Ban (30m Hop)", State.AntiBan, function(v) State.AntiBan = v; if v then Notify("Security Active") end end)
+		AddToggle("High Performance", State.HighPerf, function(v)
 			State.HighPerf = v
-			if v then setfpscap(30); Lighting.GlobalShadows = false; for _,v in pairs(workspace:GetDescendants()) do if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic end end
-			else setfpscap(999); Lighting.GlobalShadows = true end
+			if v then 
+				setfpscap(30)
+				Lighting.GlobalShadows = false 
+				for _,v in pairs(workspace:GetDescendants()) do if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic end end
+			else 
+				setfpscap(999) 
+				Lighting.GlobalShadows = true 
+			end
 		end)
 	end
 end
